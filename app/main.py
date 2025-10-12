@@ -349,7 +349,61 @@ def draw (win, images, player_car, computer_car, game_info, powerups, projectile
 
     player_car.draw(win)
     computer_car.draw(win)
-    pygame.display.update()
+
+
+def draw_button(win, rect, text, font, base_color, hover_color):
+    mx, my = pygame.mouse.get_pos()
+    x, y, w, h = rect
+    is_hover = x <= mx <= x + w and y <= my <= y + h
+    color = hover_color if is_hover else base_color
+    pygame.draw.rect(win, color, rect, border_radius=8)
+    txt = font.render(text, True, (0, 0, 0))
+    tw, th = txt.get_width(), txt.get_height()
+    win.blit(txt, (x + (w - tw) // 2, y + (h - th) // 2))
+
+
+def draw_main_menu(win):
+    # draw background images first then apply translucent overlay
+    for img, pos in images:
+        win.blit(img, pos)
+
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    win.blit(overlay, (0, 0))
+
+    title = MAIN_FONT.render("Car Racing Game", True, (255, 255, 255))
+    win.blit(title, ((WIDTH - title.get_width()) // 2, HEIGHT // 4))
+
+    btn_w, btn_h = 220, 70
+    btn_x = (WIDTH - btn_w) // 2
+    btn_y = HEIGHT // 2
+    draw_button(win, (btn_x, btn_y, btn_w, btn_h), "Play", MAIN_FONT, (255, 200, 0), (255, 230, 120))
+
+
+def draw_modal(win, message):
+    # Semi-transparent overlay
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    win.blit(overlay, (0, 0))
+
+    box_w, box_h = 500, 240
+    box_x = (WIDTH - box_w) // 2
+    box_y = (HEIGHT - box_h) // 2
+    pygame.draw.rect(win, (240, 240, 240), (box_x, box_y, box_w, box_h), border_radius=10)
+    pygame.draw.rect(win, (0, 0, 0), (box_x, box_y, box_w, box_h), 2, border_radius=10)
+
+    msg = MAIN_FONT.render(message, True, (20, 20, 20))
+    win.blit(msg, (box_x + (box_w - msg.get_width()) // 2, box_y + 30))
+
+    # buttons: Restart and Quit
+    btn_w, btn_h = 160, 56
+    spacing = 30
+    total_w = btn_w * 2 + spacing
+    start_x = box_x + (box_w - total_w) // 2
+    btn_y = box_y + box_h - btn_h - 30
+
+    draw_button(win, (start_x, btn_y, btn_w, btn_h), "Restart", SMALL_FONT, (100, 220, 120), (140, 255, 170))
+    draw_button(win, (start_x + btn_w + spacing, btn_y, btn_w, btn_h), "Quit", SMALL_FONT, (220, 100, 100), (255, 140, 140))
 
 def move_player(player_car):
     keys = pygame.key.get_pressed()
@@ -427,18 +481,16 @@ def handle_collision(player_car, computer_car, powerups, projectiles):
     # finish line
     computer_finish_point_collide = computer_car.collide(FINISH_MASK, *FINISH_POSITION)
     if computer_finish_point_collide != None:
-        player_car.reset()
-        computer_car.reset()
-        print("You Lose!")
+        # computer reached finish -> player loses
+        return "lose"
 
     player_finish_point_collide = player_car.collide(FINISH_MASK, *FINISH_POSITION)
     if player_finish_point_collide != None:
         if player_finish_point_collide[1] == 0:
             player_car.bounce()
         else:
-            player_car.reset()
-            computer_car.reset()
-            print("You Win!")
+            # player reached finish -> player wins
+            return "win"
 
     # player picks up powerups
     px, py = int(player_car.x), int(player_car.y)
@@ -479,74 +531,124 @@ def handle_collision(player_car, computer_car, powerups, projectiles):
                     player_car.bounce()
                 projectiles.remove(p)
                 continue
+    return None
 
 run = True
 clock = pygame.time.Clock()
 images = [(GRASS, (0,0)), (TRACK, (0,0)), (FINISH, FINISH_POSITION), (TRACK_BORDER, (0,0))]
-player_car = PlayerCar(4, 4) 
-computer_car = ComputerCar(4, 4, PATH)    
-game_info = GameInfo()
 
-# new: powerups and projectiles
-powerups = spawn_powerups(4)
-projectiles = []
-last_spawn = time.time()
+
+# a small helper to reset game state
+def reset_game_state():
+    global player_car, computer_car, powerups, projectiles, last_spawn, game_info
+    player_car = PlayerCar(4, 4)
+    computer_car = ComputerCar(4, 4, PATH)
+    game_info = GameInfo()
+    powerups = spawn_powerups(4)
+    projectiles = []
+    last_spawn = time.time()
+
+
+# initialize state
+reset_game_state()
 SPAWN_INTERVAL = 12  # seconds - spawn a new pickup periodically
+
+# states: 'menu', 'playing', 'modal' (end)
+state = 'menu'
+modal_result = None
 
 while run:
     clock.tick(FPS)
 
-    pygame.display.update()
-
-    # update player's power state timers
-    player_car.update_power_state()
-
-    # periodic spawn
-    if time.time() - last_spawn > SPAWN_INTERVAL:
-        powerups.extend(spawn_powerups(1))
-        last_spawn = time.time()
-
-    draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles)
-
-    while not game_info.started:
-        blit_text_center(WIN, MAIN_FONT, f"Press Any key to start level {game_info.level}!")
-        pygame.display.update()
+    # menu state: show Play button until clicked
+    if state == 'menu':
+        draw_main_menu(WIN)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
+                run = False
+                break
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mx, my = pygame.mouse.get_pos()
+                btn_w, btn_h = 220, 70
+                btn_x = (WIDTH - btn_w) // 2
+                btn_y = HEIGHT // 2
+                if btn_x <= mx <= btn_x + btn_w and btn_y <= my <= btn_y + btn_h:
+                    state = 'playing'
+                    game_info.start_level()
+        pygame.display.update()
+        continue
+
+    # playing state: normal game loop
+    if state == 'playing':
+        # update player's power state timers
+        player_car.update_power_state()
+
+        # periodic spawn
+        if time.time() - last_spawn > SPAWN_INTERVAL:
+            powerups.extend(spawn_powerups(1))
+            last_spawn = time.time()
+
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
                 break
             if event.type == pygame.KEYDOWN:
-                game_info.start_level()
+                # fire weapon if ammo
+                if event.key == pygame.K_SPACE and player_car.ammo > 0:
+                    rad = math.radians(player_car.angle)
+                    front_x = player_car.x - math.sin(rad) * (player_car.img.get_height()//2)
+                    front_y = player_car.y - math.cos(rad) * (player_car.img.get_height()//2)
+                    proj = Projectile(front_x, front_y, player_car.angle, owner="player")
+                    projectiles.append(proj)
+                    player_car.ammo -= 1
+
+        move_player(player_car)
+        computer_car.move()
+
+        result = handle_collision(player_car, computer_car, powerups, projectiles)
+        if result in ("win", "lose"):
+            modal_result = result
+            # pause game and show modal
+            state = 'modal'
+        pygame.display.update()
+        continue
+
+    # modal state: show end-of-game dialog with Restart/Quit
+    if state == 'modal':
+        msg = "You Win!" if modal_result == 'win' else "You Lose!"
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles)
+        draw_modal(WIN, msg)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
                 break
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mx, my = pygame.mouse.get_pos()
+                # compute button positions from draw_modal
+                box_w, box_h = 500, 240
+                box_x = (WIDTH - box_w) // 2
+                box_y = (HEIGHT - box_h) // 2
+                btn_w, btn_h = 160, 56
+                spacing = 30
+                total_w = btn_w * 2 + spacing
+                start_x = box_x + (box_w - total_w) // 2
+                btn_y = box_y + box_h - btn_h - 30
 
+                # Restart
+                if start_x <= mx <= start_x + btn_w and btn_y <= my <= btn_y + btn_h:
+                    reset_game_state()
+                    state = 'playing'
+                    game_info.start_level()
+                # Quit
+                if start_x + btn_w + spacing <= mx <= start_x + btn_w + spacing + btn_w and btn_y <= my <= btn_y + btn_h:
+                    run = False
+                    break
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
-            break
-
-        if event.type == pygame.KEYDOWN:
-            # fire weapon if ammo
-            if event.key == pygame.K_SPACE and player_car.ammo > 0:
-                # spawn projectile at car front
-                rad = math.radians(player_car.angle)
-                front_x = player_car.x - math.sin(rad) * (player_car.img.get_height()//2)
-                front_y = player_car.y - math.cos(rad) * (player_car.img.get_height()//2)
-                proj = Projectile(front_x, front_y, player_car.angle, owner="player")
-                projectiles.append(proj)
-                player_car.ammo -= 1
-
-        #if event.type == pygame.MOUSEBUTTONDOWN:
-        #    pos = pygame.mouse.get_pos()
-        #    computer_car.path.append(pos)
-
-    move_player(player_car)
-    computer_car.move()
-
-    handle_collision(player_car, computer_car, powerups, projectiles)
-
-
-        
+    pygame.display.update()
+    continue
 
 print(computer_car.path)
 pygame.quit()
