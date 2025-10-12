@@ -9,3 +9,8 @@ def blit_rotate_center(win, image, top_left, angle):
     new_rect = rotated_image.get_rect(center=image.get_rect(topleft=top_left).center)
 
     win.blit(rotated_image, new_rect.topleft)
+
+def blit_text_center(win, font, text, color=(255, 255, 255)):
+    render = font.render(text, True, color)
+    rect = render.get_rect(center=(win.get_width()//2, win.get_height()//2))
+    win.blit(render, rect)
