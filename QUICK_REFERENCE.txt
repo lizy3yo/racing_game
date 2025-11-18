@@ -1,0 +1,86 @@
+╔══════════════════════════════════════════════════════════════╗
+║        🏎️  ULTIMATE RACING CHAMPIONSHIP - QUICK REF 🏎️        ║
+╚══════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🎮 CONTROLS                                                  │
+├─────────────────────────────────────────────────────────────┤
+│  W / ↑        Accelerate                                    │
+│  S / ↓        Brake / Reverse                               │
+│  A / ←        Turn Left                                     │
+│  D / →        Turn Right                                    │
+│  SPACE        Fire Weapon (when ammo available)             │
+│  ESC          Return to Menu                                │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ ⚡ POWER-UPS                                                 │
+├─────────────────────────────────────────────────────────────┤
+│  🟡 BOOST         +80% speed for 5 seconds                  │
+│  🟣 VULNERABILITY Pass through walls (risky!)               │
+│  🟢 WEAPON        +1 ammo to stun opponent                  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ 📊 HUD DISPLAY                                              │
+├─────────────────────────────────────────────────────────────┤
+│  Top-Left:  LAP, TIME, BEST, SPEED                          │
+│  Top-Right: AMMO, POWER, DURATION                           │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🎯 PRO TIPS                                                 │
+├─────────────────────────────────────────────────────────────┤
+│  • Brake before corners, accelerate out                     │
+│  • Use boost on straightaways                               │
+│  • Save weapons for strategic moments                       │
+│  • Hit AI with weapons to stun for 3 seconds               │
+│  • Collect power-ups by driving through them                │
+│  • Watch your speed - too fast = less control              │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🗺️  TRACKS                                                  │
+├─────────────────────────────────────────────────────────────┤
+│  CLASSIC CIRCUIT  - Technical track with tight corners      │
+│  SPEEDWAY OVAL    - High-speed oval racing                  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🏆 WINNING                                                  │
+├─────────────────────────────────────────────────────────────┤
+│  Cross the finish line before your AI opponent!             │
+│  Complete multiple laps to set best times                   │
+│  Master each track's unique layout                          │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ ⚙️  CUSTOMIZATION                                           │
+├─────────────────────────────────────────────────────────────┤
+│  Edit app/config.py to adjust:                              │
+│  • Game speed (FPS)                                         │
+│  • Car speeds and handling                                  │
+│  • Power-up duration and effects                            │
+│  • Visual effects (particles)                               │
+│  • Difficulty settings                                      │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🚀 QUICK START                                              │
+├─────────────────────────────────────────────────────────────┤
+│  Windows: Double-click START_GAME.bat                       │
+│  Manual:  python app/main.py                                │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ 📚 MORE INFO                                                │
+├─────────────────────────────────────────────────────────────┤
+│  README.md       - Full documentation                       │
+│  GAME_GUIDE.md   - Detailed strategies and tips             │
+│  CHANGELOG.md    - All improvements and features            │
+│  config.py       - Customization options                    │
+└─────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════╗
+║              Good luck, racer! 🏁 Have fun! 🎮               ║
+╚══════════════════════════════════════════════════════════════╝
