@@ -55,6 +55,82 @@ PATH = [(182, 115), (67, 153), (69, 532), (351, 803), (441, 701), (478, 565),
         (517, 312), (777, 278), (798, 101), (615, 80), (349, 94), (299, 421), 
         (199, 391), (205, 193)]
 
+# Game Settings
+class GameSettings:
+    def __init__(self):
+        self.laps_to_win = 3
+        self.map_rotation = "manual"  # "manual", "per_lap"
+        self.race_mode = "continuous"  # "continuous", "sprint"
+        self.show_hud = True  # Show/hide HUD boxes
+        self.editing_laps = False
+        self.laps_input = "3"
+    
+    def start_editing_laps(self):
+        self.editing_laps = True
+        self.laps_input = str(self.laps_to_win)
+    
+    def stop_editing_laps(self):
+        self.editing_laps = False
+        try:
+            # Don't allow empty or zero
+            if self.laps_input == "" or self.laps_input == "0":
+                self.laps_input = str(self.laps_to_win)
+                return
+            
+            value = int(self.laps_input)
+            if 1 <= value <= 99:
+                self.laps_to_win = value
+            else:
+                self.laps_input = str(self.laps_to_win)
+        except:
+            self.laps_input = str(self.laps_to_win)
+    
+    def add_digit(self, digit):
+        # Don't allow leading zeros
+        if self.laps_input == "" and digit == "0":
+            return
+        
+        if len(self.laps_input) < 2:
+            if self.laps_input == "0":
+                self.laps_input = digit
+            else:
+                self.laps_input += digit
+    
+    def backspace(self):
+        if len(self.laps_input) > 0:
+            self.laps_input = self.laps_input[:-1]
+        # Allow empty input so user can type fresh number
+    
+    def cycle_rotation(self):
+        rotations = ["manual", "per_lap"]
+        current_index = rotations.index(self.map_rotation)
+        self.map_rotation = rotations[(current_index + 1) % len(rotations)]
+    
+    def cycle_race_mode(self):
+        modes = ["continuous", "sprint"]
+        current_index = modes.index(self.race_mode)
+        self.race_mode = modes[(current_index + 1) % len(modes)]
+    
+    def get_rotation_text(self):
+        if self.map_rotation == "manual":
+            return "Manual Selection"
+        else:
+            return "Random Per Lap"
+    
+    def get_race_mode_text(self):
+        if self.race_mode == "continuous":
+            return "Continuous"
+        else:
+            return "Sprint"
+    
+    def toggle_hud(self):
+        self.show_hud = not self.show_hud
+    
+    def get_hud_text(self):
+        return "Visible" if self.show_hud else "Hidden"
+
+game_settings = GameSettings()
+
 # Helper function to update window title
 def update_window_title(state, current_map=None, lap=None):
     """Update window title based on game state"""
@@ -142,6 +218,7 @@ class GameInfo:
         self.laps = 0
         self.best_time = None
         self.current_lap_start = 0
+        self.last_lap_time = 0  # Prevent multiple lap counts
 
     def next_level(self):
         self.level += 1
@@ -170,11 +247,17 @@ class GameInfo:
         return round(time.time() - self.current_lap_start, 2)
     
     def complete_lap(self):
+        current_time = time.time()
+        # Prevent multiple lap counts within 2 seconds (cooldown)
+        if current_time - self.last_lap_time < 2.0:
+            return 0
+        
         lap_time = self.get_lap_time()
         if self.best_time is None or lap_time < self.best_time:
             self.best_time = lap_time
         self.laps += 1
-        self.current_lap_start = time.time()
+        self.current_lap_start = current_time
+        self.last_lap_time = current_time
         return lap_time
 
 class AbstractCar:
@@ -469,6 +552,10 @@ def draw_text_with_shadow(win, text, font, x, y, color=(255, 255, 255), shadow_c
     win.blit(main, (x, y))
 
 def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_info2=None):
+    # Check if HUD should be shown
+    if not game_settings.show_hud:
+        return
+    
     # Modern HUD with panels - more transparent
     panel_color = (20, 20, 30, 120)
     accent_color = (255, 215, 0)
@@ -484,7 +571,7 @@ def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_inf
     
     p1_label = "P1 " if player_car2 else ""
     y_start = HEIGHT - panel_height - 5
-    draw_text_with_shadow(win, f"{p1_label}LAP: {game_info.laps}", HUD_FONT, 18, y_start, (255, 255, 255))
+    draw_text_with_shadow(win, f"{p1_label}LAP: {game_info.laps}/{game_settings.laps_to_win}", HUD_FONT, 18, y_start, (255, 255, 255))
     draw_text_with_shadow(win, f"TIME: {game_info.get_lap_time():.2f}s", HUD_FONT, 18, y_start + 20, (100, 255, 100))
     if game_info.best_time:
         draw_text_with_shadow(win, f"BEST: {game_info.best_time:.2f}s", HUD_FONT, 18, y_start + 40, (255, 200, 0))
@@ -511,7 +598,7 @@ def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_inf
         
         y_start2 = HEIGHT - panel_height2 - 5
         p2_text_x = p2_x_offset + 8
-        draw_text_with_shadow(win, f"P2 LAP: {game_info2.laps}", HUD_FONT, p2_text_x, y_start2, (255, 255, 255))
+        draw_text_with_shadow(win, f"P2 LAP: {game_info2.laps}/{game_settings.laps_to_win}", HUD_FONT, p2_text_x, y_start2, (255, 255, 255))
         draw_text_with_shadow(win, f"TIME: {game_info2.get_lap_time():.2f}s", HUD_FONT, p2_text_x, y_start2 + 20, (100, 255, 100))
         if game_info2.best_time:
             draw_text_with_shadow(win, f"BEST: {game_info2.best_time:.2f}s", HUD_FONT, p2_text_x, y_start2 + 40, (255, 200, 0))
@@ -636,7 +723,7 @@ def draw_main_menu(win, images):
         ("SINGLE PLAYER", start_y),
         ("MULTIPLAYER", start_y + btn_h + spacing),
         ("SELECT MAP", start_y + (btn_h + spacing) * 2),
-        ("HELP", start_y + (btn_h + spacing) * 3),
+        ("OPTIONS", start_y + (btn_h + spacing) * 3),
         ("QUIT", start_y + (btn_h + spacing) * 4)
     ]
     
@@ -666,22 +753,58 @@ def draw_help_screen(win, images):
     line_height = 28
     section_spacing = 15
     
-    # Controls Section
+    # Controls Section - Two columns for P1 and P2
     section_title = SMALL_FONT.render("🎮 CONTROLS", True, (255, 215, 0))
     win.blit(section_title, (content_x, content_y))
     content_y += 35
     
-    controls = [
-        "W/↑ - Accelerate    S/↓ - Brake/Reverse",
-        "A/← - Turn Left     D/→ - Turn Right",
-        "SPACE - Fire Weapon (Player 1)",
-        "[ - Fire Weapon (Player 2)",
-        "ESC - Return to Menu"
+    # Player 1 Controls (Left Column)
+    col1_x = content_x + 20
+    col2_x = WIDTH // 2 + 40
+    p1_y = content_y
+    
+    p1_title = TINY_FONT.render("Player 1 (WASD):", True, (100, 200, 255))
+    win.blit(p1_title, (col1_x, p1_y))
+    p1_y += line_height
+    
+    p1_controls = [
+        "  W - Accelerate",
+        "  S - Brake/Reverse",
+        "  A - Turn Left",
+        "  D - Turn Right",
+        "  SPACE - Fire Weapon"
     ]
-    for ctrl in controls:
+    for ctrl in p1_controls:
         txt = TINY_FONT.render(ctrl, True, (255, 255, 255))
-        win.blit(txt, (content_x + 20, content_y))
-        content_y += line_height
+        win.blit(txt, (col1_x, p1_y))
+        p1_y += line_height
+    
+    # Player 2 Controls (Right Column)
+    p2_y = content_y
+    
+    p2_title = TINY_FONT.render("Player 2 (Arrow Keys):", True, (255, 150, 150))
+    win.blit(p2_title, (col2_x, p2_y))
+    p2_y += line_height
+    
+    p2_controls = [
+        "  ↑ - Accelerate",
+        "  ↓ - Brake/Reverse",
+        "  ← - Turn Left",
+        "  → - Turn Right",
+        "  [ - Fire Weapon"
+    ]
+    for ctrl in p2_controls:
+        txt = TINY_FONT.render(ctrl, True, (255, 255, 255))
+        win.blit(txt, (col2_x, p2_y))
+        p2_y += line_height
+    
+    # Move content_y to after both columns
+    content_y = max(p1_y, p2_y) + 5
+    
+    # General Controls
+    general = TINY_FONT.render("ESC - Return to Menu    G - Toggle HUD", True, (200, 200, 200))
+    win.blit(general, (col1_x, content_y))
+    content_y += line_height
     
     content_y += section_spacing
     
@@ -747,6 +870,123 @@ def draw_help_screen(win, images):
                             (100, 50, 50), (150, 80, 80), (255, 255, 255))
     
     return back_hover
+
+def draw_options_menu(win, images, settings):
+    for img, pos in images:
+        win.blit(img, pos)
+
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 200))
+    win.blit(overlay, (0, 0))
+
+    # Title
+    title = MAIN_FONT.render("OPTIONS", True, (255, 215, 0))
+    win.blit(title, ((WIDTH - title.get_width()) // 2, 50))
+
+    # Options panel
+    panel_w, panel_h = 600, 400
+    panel_x = (WIDTH - panel_w) // 2
+    panel_y = 180
+    
+    pygame.draw.rect(win, (40, 40, 60), (panel_x, panel_y, panel_w, panel_h), border_radius=15)
+    pygame.draw.rect(win, (255, 215, 0), (panel_x, panel_y, panel_w, panel_h), 4, border_radius=15)
+
+    # Option 1: Laps to Win (Text Input)
+    opt_y = panel_y + 60
+    label1 = SMALL_FONT.render("Laps to Win:", True, (255, 255, 255))
+    win.blit(label1, (panel_x + 50, opt_y))
+    
+    btn_w, btn_h = 200, 50
+    btn_x = panel_x + panel_w - btn_w - 50
+    
+    # Show input field or current value
+    if settings.editing_laps:
+        display_text = (settings.laps_input if settings.laps_input else "") + "_"
+        btn_color = (120, 160, 120)
+        hover_color = (140, 180, 140)
+    else:
+        display_text = str(settings.laps_to_win)
+        btn_color = (80, 120, 80)
+        hover_color = (120, 160, 120)
+    
+    laps_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
+                            display_text, SMALL_FONT,
+                            btn_color, hover_color, (255, 255, 255))
+    
+    # Show hint text
+    if settings.editing_laps:
+        hint = TINY_FONT.render("Type number, press ENTER", True, (200, 200, 200))
+        win.blit(hint, (btn_x, opt_y + 45))
+    
+    # Option 2: Race Mode
+    opt_y += 90
+    label2 = SMALL_FONT.render("Race Mode:", True, (255, 255, 255))
+    win.blit(label2, (panel_x + 50, opt_y))
+    
+    race_mode_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
+                                settings.get_race_mode_text(), SMALL_FONT,
+                                (100, 80, 120), (140, 120, 160), (255, 255, 255))
+    
+    # Race mode description
+    if settings.race_mode == "continuous":
+        mode_desc = "Race continues until all laps complete"
+    else:
+        mode_desc = "Reset positions after each lap winner"
+    mode_desc_render = TINY_FONT.render(mode_desc, True, (200, 200, 200))
+    win.blit(mode_desc_render, (panel_x + 50, opt_y + 45))
+    
+    # Option 3: Map Rotation (disabled in Continuous mode)
+    opt_y += 90
+    
+    # Disable map rotation in continuous mode
+    rotation_disabled = settings.race_mode == "continuous"
+    
+    if rotation_disabled:
+        label3 = SMALL_FONT.render("Map Rotation:", True, (100, 100, 100))  # Gray text
+    else:
+        label3 = SMALL_FONT.render("Map Rotation:", True, (255, 255, 255))
+    win.blit(label3, (panel_x + 50, opt_y))
+    
+    if rotation_disabled:
+        # Show disabled button
+        rotation_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
+                                    "Disabled", TINY_FONT,
+                                    (50, 50, 60), (50, 50, 60), (100, 100, 100))
+        # Show why it's disabled
+        disabled_text = TINY_FONT.render("Only available in Sprint mode", True, (150, 150, 150))
+        win.blit(disabled_text, (panel_x + 50, opt_y + 45))
+    else:
+        rotation_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
+                                    settings.get_rotation_text(), TINY_FONT,
+                                    (80, 80, 120), (120, 120, 160), (255, 255, 255))
+    
+    # Option 4: Show HUD
+    opt_y += 90
+    label4 = SMALL_FONT.render("Show HUD:", True, (255, 255, 255))
+    win.blit(label4, (panel_x + 50, opt_y))
+    
+    hud_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
+                           settings.get_hud_text(), SMALL_FONT,
+                           (80, 100, 80), (120, 140, 120), (255, 255, 255))
+    
+    hud_desc = TINY_FONT.render("Press G during race to toggle", True, (200, 200, 200))
+    win.blit(hud_desc, (panel_x + 50, opt_y + 45))
+
+    # Help button (above Back button)
+    back_btn_w, back_btn_h = 200, 60
+    back_btn_x = (WIDTH - back_btn_w) // 2
+    help_btn_y = HEIGHT - 180
+    help_hover = draw_button(win, (back_btn_x, help_btn_y, back_btn_w, back_btn_h), 
+                            "HELP", SMALL_FONT,
+                            (80, 120, 80), (120, 180, 120), (255, 255, 255))
+    
+    # Back button
+    back_btn_y = HEIGHT - 100
+    back_hover = draw_button(win, (back_btn_x, back_btn_y, back_btn_w, back_btn_h), 
+                            "BACK", SMALL_FONT,
+                            (100, 50, 50), (150, 80, 80), (255, 255, 255))
+    
+    return laps_hover, race_mode_hover, rotation_hover, hud_hover, help_hover, back_hover
 
 def draw_map_selection(win, images, maps_list):
     for img, pos in images:
@@ -995,18 +1235,22 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
             else:
                 player_car2.bounce()
 
-    # Finish line
+    # Finish line - AI in single player mode
     if not player_car2:
         computer_finish_point_collide = computer_car.collide(finish_mask, *finish_pos)
         if computer_finish_point_collide != None:
-            return "lose"
+            # AI completed a lap
+            ai_game_info.complete_lap()
+            # Check if AI completed required laps
+            if ai_game_info.laps >= game_settings.laps_to_win:
+                return "lose"  # AI finished all laps first
 
     player_finish_point_collide = player_car.collide(finish_mask, *finish_pos)
     if player_finish_point_collide != None:
-        if player_finish_point_collide[1] == 0:
-            player_car.bounce()
+        lap_time = game_info.complete_lap()
+        if lap_time == 0:  # Cooldown active, don't process
+            pass
         else:
-            lap_time = game_info.complete_lap()
             # Celebration particles
             for _ in range(20):
                 particles.append(Particle(
@@ -1017,19 +1261,33 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                     random.uniform(-5, 5),
                     1.5
                 ))
-            if player_car2:
-                return "p1_win"
-            else:
-                return "win"
+            
+            # Sprint Mode: Reset positions after each lap
+            if game_settings.race_mode == "sprint" and player_car2:
+                # Player 1 won this lap
+                if game_info.laps >= game_settings.laps_to_win:
+                    return "p1_win"  # Player 1 won the most laps
+                else:
+                    return "p1_lap_win"  # Player 1 won this lap, reset positions
+            
+            # Continuous Mode: Check if all laps completed
+            elif game_info.laps >= game_settings.laps_to_win:
+                if player_car2:
+                    return "p1_win"  # Player 1 finished all laps first
+                else:
+                    return "win"  # Player beat AI
+            # Check for map rotation per lap (only if not finished)
+            elif game_settings.map_rotation == "per_lap":
+                return "change_map"
     
     # Player 2 finish line
     if player_car2:
         player2_finish_point_collide = player_car2.collide(finish_mask, *finish_pos)
         if player2_finish_point_collide != None:
-            if player2_finish_point_collide[1] == 0:
-                player_car2.bounce()
+            lap_time = game_info2.complete_lap()
+            if lap_time == 0:  # Cooldown active, don't process
+                pass
             else:
-                lap_time = game_info2.complete_lap()
                 # Celebration particles
                 for _ in range(20):
                     particles.append(Particle(
@@ -1040,7 +1298,21 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                         random.uniform(-5, 5),
                         1.5
                     ))
-                return "p2_win"
+                
+                # Sprint Mode: Reset positions after each lap
+                if game_settings.race_mode == "sprint":
+                    # Player 2 won this lap
+                    if game_info2.laps >= game_settings.laps_to_win:
+                        return "p2_win"  # Player 2 won the most laps
+                    else:
+                        return "p2_lap_win"  # Player 2 won this lap, reset positions
+                
+                # Continuous Mode: Check if all laps completed
+                elif game_info2.laps >= game_settings.laps_to_win:
+                    return "p2_win"  # Player 2 finished all laps first
+                # Check for map rotation per lap (only if not finished)
+                elif game_settings.map_rotation == "per_lap":
+                    return "change_map"
 
     # Player 1 picks up powerups
     px, py = int(player_car.x), int(player_car.y)
@@ -1153,7 +1425,7 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
     return None
 
 def reset_game_state(current_map_key, multiplayer=False):
-    global player_car, player_car2, computer_car, powerups, projectiles, particles, game_info, game_info2, last_spawn
+    global player_car, player_car2, computer_car, powerups, projectiles, particles, game_info, game_info2, ai_game_info, last_spawn
     
     current_map = MAPS[current_map_key]
     PlayerCar.START_POS = current_map["player_start"]
@@ -1178,6 +1450,7 @@ def reset_game_state(current_map_key, multiplayer=False):
         player_car2 = None
         game_info2 = None
         computer_car = ComputerCar(4, 4, current_map["path"])
+        ai_game_info = GameInfo()  # Track AI laps
     
     game_info = GameInfo()
     powerups = spawn_powerups(4, current_map["track_mask"], current_map["border_mask"])
@@ -1198,6 +1471,7 @@ current_map_key = "classic"
 is_multiplayer = False
 player_car2 = None
 game_info2 = None
+ai_game_info = None
 reset_game_state(current_map_key, is_multiplayer)
 images = get_map_images(current_map_key)
 
@@ -1246,9 +1520,9 @@ while run:
                 elif hover_states[2]:  # Select Map
                     state = 'map_select'
                     update_window_title('map_select')
-                elif hover_states[3]:  # Help
-                    state = 'help'
-                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Game Guide")
+                elif hover_states[3]:  # Options
+                    state = 'options'
+                    update_window_title('options')
                 elif hover_states[4]:  # Quit
                     run = False
                     break
@@ -1266,6 +1540,52 @@ while run:
                 break
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if back_hover:
+                    state = 'options'
+                    update_window_title('options')
+        
+        pygame.display.update()
+        continue
+
+    # Options state
+    if state == 'options':
+        laps_hover, race_mode_hover, rotation_hover, hud_hover, help_hover, back_hover = draw_options_menu(WIN, images, game_settings)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+            
+            # Handle keyboard input for lap number
+            if event.type == pygame.KEYDOWN and game_settings.editing_laps:
+                if event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
+                    game_settings.stop_editing_laps()
+                elif event.key == pygame.K_BACKSPACE:
+                    game_settings.backspace()
+                elif event.key == pygame.K_ESCAPE:
+                    game_settings.editing_laps = False
+                    game_settings.laps_input = str(game_settings.laps_to_win)
+                elif event.unicode.isdigit():
+                    game_settings.add_digit(event.unicode)
+            
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if laps_hover:
+                    if not game_settings.editing_laps:
+                        game_settings.start_editing_laps()
+                    else:
+                        game_settings.stop_editing_laps()
+                elif race_mode_hover:
+                    game_settings.cycle_race_mode()
+                elif rotation_hover and game_settings.race_mode != "continuous":
+                    # Only allow clicking if not in continuous mode
+                    game_settings.cycle_rotation()
+                elif hud_hover:
+                    game_settings.toggle_hud()
+                elif help_hover:
+                    state = 'help'
+                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Game Guide")
+                elif back_hover:
+                    if game_settings.editing_laps:
+                        game_settings.stop_editing_laps()
                     state = 'menu'
                     update_window_title('menu')
         
@@ -1309,6 +1629,8 @@ while run:
             game_info.start_level()
             if game_info2:
                 game_info2.start_level()
+            elif ai_game_info:
+                ai_game_info.start_level()
             update_window_title('playing', MAPS[current_map_key], game_info.laps)
         else:
             draw_countdown(WIN, sec)
@@ -1359,6 +1681,8 @@ while run:
                     proj = Projectile(front_x, front_y, player_car2.angle, owner="player2")
                     projectiles.append(proj)
                     player_car2.ammo -= 1
+                elif event.key == pygame.K_g:
+                    game_settings.toggle_hud()
                 elif event.key == pygame.K_ESCAPE:
                     state = 'menu'
                     update_window_title('menu')
@@ -1369,7 +1693,36 @@ while run:
 
         result = handle_collision(player_car, computer_car, powerups, projectiles, particles, 
                                  MAPS[current_map_key], game_info, player_car2, game_info2)
-        if result in ("win", "lose", "p1_win", "p2_win"):
+        
+        if result in ("p1_lap_win", "p2_lap_win"):
+            # Sprint Mode: Player won this lap, reset positions
+            player_car.x, player_car.y = MAPS[current_map_key]["player_start"]
+            player_car.angle = MAPS[current_map_key].get("start_angle", 0)
+            player_car.vel = 0
+            
+            if player_car2:
+                player_car2.x, player_car2.y = MAPS[current_map_key]["ai_start"]
+                player_car2.angle = MAPS[current_map_key].get("start_angle", 0)
+                player_car2.vel = 0
+            
+            # Brief countdown before next lap
+            countdown_start = time.time()
+            countdown_number = 2  # 2 second countdown
+            state = 'countdown'
+            update_window_title('countdown')
+        
+        elif result == "change_map":
+            # Random map rotation per lap
+            available_maps = list(MAPS.keys())
+            current_map_key = random.choice(available_maps)
+            reset_game_state(current_map_key, is_multiplayer)
+            images = get_map_images(current_map_key)
+            countdown_start = time.time()
+            countdown_number = COUNTDOWN_SECONDS
+            state = 'countdown'
+            update_window_title('countdown')
+        
+        elif result in ("win", "lose", "p1_win", "p2_win"):
             modal_result = result
             state = 'modal'
             update_window_title('modal')
