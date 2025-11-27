@@ -46,7 +46,7 @@ TITLE_FONT = pygame.font.SysFont("arial", 72, bold=True)
 MAIN_FONT = pygame.font.SysFont("arial", 36, bold=True)
 SMALL_FONT = pygame.font.SysFont("arial", 24)
 TINY_FONT = pygame.font.SysFont("arial", 18)
-HUD_FONT = pygame.font.SysFont("consolas", 22, bold=True)
+HUD_FONT = pygame.font.SysFont("consolas", 16, bold=True)
 COUNTDOWN_FONT = pygame.font.SysFont("arial", 180, bold=True)
 
 # AI Path
@@ -73,23 +73,31 @@ def update_window_title(state, current_map=None, lap=None):
     else:
         pygame.display.set_caption("🏎️ Ultimate Racing Championship")
 
-# Load speedway map assets
+# Load city circuit map assets
 try:
-    SPEEDWAY_GRASS = pygame.image.load('imgs/speedway-grass.png')
-    SPEEDWAY_TRACK = pygame.image.load('imgs/speedway-track.png')
-    SPEEDWAY_BORDER = pygame.image.load('imgs/speedway-border.png')
-    SPEEDWAY_BORDER_MASK = pygame.mask.from_surface(SPEEDWAY_BORDER)
-    SPEEDWAY_TRACK_MASK = pygame.mask.from_surface(SPEEDWAY_TRACK)
-    SPEEDWAY_FINISH = pygame.image.load('imgs/speedway-finish.png')
-    SPEEDWAY_FINISH_MASK = pygame.mask.from_surface(SPEEDWAY_FINISH)
-    SPEEDWAY_FINISH_POS = (410, 130)
-    SPEEDWAY_PATH = [(750, 450), (735, 527), (692, 596), (626, 652), (542, 687), (450, 700), 
-                     (357, 687), (273, 652), (207, 596), (164, 527), (150, 450), (164, 372), 
-                     (207, 303), (273, 247), (357, 212), (449, 200), (542, 212), (626, 247), 
-                     (692, 303), (735, 372)]
-    speedway_available = True
+    CITY_GRASS = pygame.image.load('imgs/city-grass.png')
+    CITY_TRACK = pygame.image.load('imgs/city-track.png')
+    CITY_BORDER = pygame.image.load('imgs/city-border.png')
+    CITY_BORDER_MASK = pygame.mask.from_surface(CITY_BORDER)
+    CITY_TRACK_MASK = pygame.mask.from_surface(CITY_TRACK)
+    CITY_FINISH = pygame.image.load('imgs/city-finish.png')
+    CITY_FINISH_MASK = pygame.mask.from_surface(CITY_FINISH)
+    CITY_FINISH_POS = (510, 60)
+    CITY_PATH = [(100, 100), (216, 100), (333, 100), (450, 100), (566, 100), (683, 100), 
+                 (800, 100), (800, 133), (800, 166), (800, 200), (800, 233), (800, 266), 
+                 (800, 300), (775, 300), (750, 300), (725, 300), (700, 300), (675, 300), 
+                 (650, 300), (650, 350), (650, 400), (650, 450), (650, 500), (650, 550), 
+                 (650, 600), (675, 600), (700, 600), (725, 600), (750, 600), (775, 600), 
+                 (800, 600), (800, 633), (800, 666), (800, 700), (800, 733), (800, 766), 
+                 (800, 800), (683, 800), (566, 800), (450, 800), (333, 800), (216, 800), 
+                 (100, 800), (100, 766), (100, 733), (100, 700), (100, 666), (100, 633), 
+                 (100, 600), (125, 600), (150, 600), (175, 600), (200, 600), (225, 600), 
+                 (250, 600), (250, 550), (250, 500), (250, 450), (250, 400), (250, 350), 
+                 (250, 300), (225, 300), (200, 300), (175, 300), (150, 300), (125, 300), 
+                 (100, 300), (100, 266), (100, 233), (100, 200), (100, 166), (100, 133)]
+    city_available = True
 except:
-    speedway_available = False
+    city_available = False
 
 # Map configurations
 MAPS = {
@@ -109,20 +117,21 @@ MAPS = {
     }
 }
 
-if speedway_available:
-    MAPS["speedway"] = {
-        "name": "Speedway Oval",
-        "grass": SPEEDWAY_GRASS,
-        "track": SPEEDWAY_TRACK,
-        "border": SPEEDWAY_BORDER,
-        "border_mask": SPEEDWAY_BORDER_MASK,
-        "track_mask": SPEEDWAY_TRACK_MASK,
-        "finish": SPEEDWAY_FINISH,
-        "finish_mask": SPEEDWAY_FINISH_MASK,
-        "finish_pos": SPEEDWAY_FINISH_POS,
-        "path": SPEEDWAY_PATH,
-        "player_start": (420, 200),
-        "ai_start": (480, 200)
+if city_available:
+    MAPS["city"] = {
+        "name": "City Circuit",
+        "grass": CITY_GRASS,
+        "track": CITY_TRACK,
+        "border": CITY_BORDER,
+        "border_mask": CITY_BORDER_MASK,
+        "track_mask": CITY_TRACK_MASK,
+        "finish": CITY_FINISH,
+        "finish_mask": CITY_FINISH_MASK,
+        "finish_pos": CITY_FINISH_POS,
+        "path": CITY_PATH,
+        "player_start": (430, 105),
+        "ai_start": (430, 75),
+        "start_angle": 90
     }
 
 class GameInfo:
@@ -222,12 +231,25 @@ class PlayerCar(AbstractCar):
     IMG = FERARRI
     START_POS = (205, 200)
 
-    def __init__(self, max_vel, rotation_vel):
+    def __init__(self, max_vel, rotation_vel, player_num=1):
         super().__init__(max_vel, rotation_vel)
         self.active_power = None
         self.power_end_time = 0
         self.vulnerable = False
         self.ammo = 0
+        self.player_num = player_num
+        self.stunned_until = 0
+        
+        # Set different colors for different players
+        if player_num == 2:
+            self.img = BLUE_CAR
+    
+    def is_stunned(self):
+        return time.time() < self.stunned_until
+    
+    def stun(self, duration=2.0):
+        self.stunned_until = time.time() + duration
+        self.vel = 0
 
     def reduce_speed(self):
         self.vel = max(self.vel - self.acceleration / 0.5, 0)
@@ -400,7 +422,7 @@ def spawn_powerups(count=3, track_mask=None, border_mask=None):
     powerups = []
     margin = 50
     attempts = 0
-    max_attempts = 2000
+    max_attempts = 5000
     
     if track_mask is None:
         track_mask = TRACK_MASK
@@ -413,14 +435,19 @@ def spawn_powerups(count=3, track_mask=None, border_mask=None):
         y = random.randint(margin, HEIGHT - margin)
         
         try:
-            on_track = track_mask.get_at((x, y))
+            # Check if position is on the track
+            # get_at returns an integer (0 or 1) for masks
+            on_track = track_mask.get_at((x, y)) > 0
         except IndexError:
-            on_track = 0
+            on_track = False
+        
         try:
-            on_border = border_mask.get_at((x, y))
+            # Check if position is on border
+            on_border = border_mask.get_at((x, y)) > 0
         except IndexError:
-            on_border = 0
+            on_border = False
 
+        # Only spawn if on track AND not on border
         if on_track and not on_border:
             powerups.append({
                 "type": pu_type, 
@@ -431,18 +458,8 @@ def spawn_powerups(count=3, track_mask=None, border_mask=None):
             })
         attempts += 1
 
-    while len(powerups) < count:
-        pu_type = random.choice([PU_BOOST, PU_VULN, PU_WEAPON])
-        x = random.randint(margin, WIDTH - margin)
-        y = random.randint(margin, HEIGHT - margin)
-        powerups.append({
-            "type": pu_type, 
-            "pos": (x, y), 
-            "angle": random.uniform(0, 360), 
-            "rot_speed": random.uniform(-90, 90), 
-            "pulse_offset": random.uniform(0, math.pi * 2)
-        })
-
+    # If we couldn't find enough valid positions, don't add random ones
+    # This ensures powerups are ONLY on valid track areas
     return powerups
 
 def draw_text_with_shadow(win, text, font, x, y, color=(255, 255, 255), shadow_color=(0, 0, 0), offset=2):
@@ -451,41 +468,64 @@ def draw_text_with_shadow(win, text, font, x, y, color=(255, 255, 255), shadow_c
     win.blit(shadow, (x + offset, y + offset))
     win.blit(main, (x, y))
 
-def draw_hud(win, player_car, game_info, current_map):
-    # Modern HUD with panels
-    panel_color = (20, 20, 30, 200)
+def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_info2=None):
+    # Modern HUD with panels - more transparent
+    panel_color = (20, 20, 30, 120)
     accent_color = (255, 215, 0)
+    accent_color2 = (100, 150, 255)
     
-    # Bottom-left panel - Game info
-    panel_rect = pygame.Rect(10, HEIGHT - 150, 280, 140)
+    # Bottom-left panel - Player 1 info (combined with ammo)
+    panel_height = 140 if player_car.active_power else 115
+    panel_rect = pygame.Rect(10, HEIGHT - panel_height - 10, 220, panel_height)
     s = pygame.Surface((panel_rect.width, panel_rect.height), pygame.SRCALPHA)
     s.fill(panel_color)
     pygame.draw.rect(s, accent_color, s.get_rect(), 2, border_radius=8)
     win.blit(s, panel_rect.topleft)
     
-    draw_text_with_shadow(win, f"LAP: {game_info.laps}", HUD_FONT, 20, HEIGHT - 140, (255, 255, 255))
-    draw_text_with_shadow(win, f"TIME: {game_info.get_lap_time():.2f}s", HUD_FONT, 20, HEIGHT - 110, (100, 255, 100))
+    p1_label = "P1 " if player_car2 else ""
+    y_start = HEIGHT - panel_height - 5
+    draw_text_with_shadow(win, f"{p1_label}LAP: {game_info.laps}", HUD_FONT, 18, y_start, (255, 255, 255))
+    draw_text_with_shadow(win, f"TIME: {game_info.get_lap_time():.2f}s", HUD_FONT, 18, y_start + 20, (100, 255, 100))
     if game_info.best_time:
-        draw_text_with_shadow(win, f"BEST: {game_info.best_time:.2f}s", HUD_FONT, 20, HEIGHT - 80, (255, 200, 0))
-    draw_text_with_shadow(win, f"SPEED: {round(player_car.vel, 1)}px/s", HUD_FONT, 20, HEIGHT - 50, (150, 200, 255))
+        draw_text_with_shadow(win, f"BEST: {game_info.best_time:.2f}s", HUD_FONT, 18, y_start + 40, (255, 200, 0))
+    draw_text_with_shadow(win, f"SPEED: {round(player_car.vel, 1)}px/s", HUD_FONT, 18, y_start + 60, (150, 200, 255))
+    draw_text_with_shadow(win, f"AMMO: {player_car.ammo}", HUD_FONT, 18, y_start + 80, (255, 100, 100))
     
-    # Top-right panel - Power-ups & Ammo
-    panel_rect2 = pygame.Rect(WIDTH - 290, 10, 280, 100)
-    s2 = pygame.Surface((panel_rect2.width, panel_rect2.height), pygame.SRCALPHA)
-    s2.fill(panel_color)
-    pygame.draw.rect(s2, accent_color, s2.get_rect(), 2, border_radius=8)
-    win.blit(s2, panel_rect2.topleft)
-    
-    draw_text_with_shadow(win, f"AMMO: {player_car.ammo}", HUD_FONT, WIDTH - 280, 20, (255, 100, 100))
-    
+    # Show active power if any
     if player_car.active_power:
         remaining = max(0, player_car.power_end_time - time.time())
         power_name = player_car.active_power.upper()
         power_color = (255, 215, 0) if player_car.active_power == PU_BOOST else (200, 0, 200) if player_car.active_power == PU_VULN else (0, 255, 0)
-        draw_text_with_shadow(win, f"POWER: {power_name}", HUD_FONT, WIDTH - 280, 50, power_color)
-        draw_text_with_shadow(win, f"{remaining:.1f}s", HUD_FONT, WIDTH - 280, 75, (255, 255, 255))
+        draw_text_with_shadow(win, f"PWR: {power_name[:4]} {remaining:.1f}s", HUD_FONT, 18, y_start + 100, power_color)
+    
+    # Player 2 HUD (if multiplayer)
+    if player_car2 and game_info2:
+        # Bottom-right panel - Player 2 info (combined with ammo) - moved more to the left
+        panel_height2 = 140 if player_car2.active_power else 115
+        p2_x_offset = WIDTH - 420  # Moved even more to the left
+        panel_rect3 = pygame.Rect(p2_x_offset, HEIGHT - panel_height2 - 10, 220, panel_height2)
+        s3 = pygame.Surface((panel_rect3.width, panel_rect3.height), pygame.SRCALPHA)
+        s3.fill(panel_color)
+        pygame.draw.rect(s3, accent_color2, s3.get_rect(), 2, border_radius=8)
+        win.blit(s3, panel_rect3.topleft)
+        
+        y_start2 = HEIGHT - panel_height2 - 5
+        p2_text_x = p2_x_offset + 8
+        draw_text_with_shadow(win, f"P2 LAP: {game_info2.laps}", HUD_FONT, p2_text_x, y_start2, (255, 255, 255))
+        draw_text_with_shadow(win, f"TIME: {game_info2.get_lap_time():.2f}s", HUD_FONT, p2_text_x, y_start2 + 20, (100, 255, 100))
+        if game_info2.best_time:
+            draw_text_with_shadow(win, f"BEST: {game_info2.best_time:.2f}s", HUD_FONT, p2_text_x, y_start2 + 40, (255, 200, 0))
+        draw_text_with_shadow(win, f"SPEED: {round(player_car2.vel, 1)}px/s", HUD_FONT, p2_text_x, y_start2 + 60, (150, 200, 255))
+        draw_text_with_shadow(win, f"AMMO: {player_car2.ammo}", HUD_FONT, p2_text_x, y_start2 + 80, (255, 100, 100))
+        
+        # Show active power if any
+        if player_car2.active_power:
+            remaining = max(0, player_car2.power_end_time - time.time())
+            power_name = player_car2.active_power.upper()
+            power_color = (255, 215, 0) if player_car2.active_power == PU_BOOST else (200, 0, 200) if player_car2.active_power == PU_VULN else (0, 255, 0)
+            draw_text_with_shadow(win, f"PWR: {power_name[:4]} {remaining:.1f}s", HUD_FONT, p2_text_x, y_start2 + 100, power_color)
 
-def draw(win, images, player_car, computer_car, game_info, powerups, projectiles, particles, current_map):
+def draw(win, images, player_car, computer_car, game_info, powerups, projectiles, particles, current_map, player_car2=None, game_info2=None):
     for img, pos in images:
         win.blit(img, pos)
 
@@ -527,10 +567,22 @@ def draw(win, images, player_car, computer_car, game_info, powerups, projectiles
             p.draw(win)
 
     player_car.draw(win)
-    computer_car.draw(win)
+    # Draw stun indicator for player 1
+    if player_car.is_stunned():
+        stun_text = SMALL_FONT.render("STUNNED!", True, (255, 50, 50))
+        win.blit(stun_text, (int(player_car.x - 30), int(player_car.y - 40)))
+    
+    if player_car2:
+        player_car2.draw(win)
+        # Draw stun indicator for player 2
+        if player_car2.is_stunned():
+            stun_text = SMALL_FONT.render("STUNNED!", True, (255, 50, 50))
+            win.blit(stun_text, (int(player_car2.x - 30), int(player_car2.y - 40)))
+    else:
+        computer_car.draw(win)
     
     # Draw HUD
-    draw_hud(win, player_car, game_info, current_map)
+    draw_hud(win, player_car, game_info, current_map, player_car2, game_info2)
 
 def draw_button(win, rect, text, font, base_color, hover_color, text_color=(0, 0, 0)):
     mx, my = pygame.mouse.get_pos()
@@ -578,11 +630,14 @@ def draw_main_menu(win, images):
     btn_w, btn_h = 300, 70
     btn_x = (WIDTH - btn_w) // 2
     spacing = 20
+    start_y = HEIGHT // 2 - 90
     
     buttons = [
-        ("PLAY", HEIGHT // 2 - 20),
-        ("SELECT MAP", HEIGHT // 2 + btn_h + spacing - 20),
-        ("QUIT", HEIGHT // 2 + (btn_h + spacing) * 2 - 20)
+        ("SINGLE PLAYER", start_y),
+        ("MULTIPLAYER", start_y + btn_h + spacing),
+        ("SELECT MAP", start_y + (btn_h + spacing) * 2),
+        ("HELP", start_y + (btn_h + spacing) * 3),
+        ("QUIT", start_y + (btn_h + spacing) * 4)
     ]
     
     hover_states = []
@@ -592,6 +647,106 @@ def draw_main_menu(win, images):
         hover_states.append(hover)
     
     return hover_states
+
+def draw_help_screen(win, images):
+    for img, pos in images:
+        win.blit(img, pos)
+
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 200))
+    win.blit(overlay, (0, 0))
+
+    # Title
+    title = MAIN_FONT.render("GAME GUIDE", True, (255, 215, 0))
+    win.blit(title, ((WIDTH - title.get_width()) // 2, 30))
+
+    # Content area
+    content_x = 80
+    content_y = 100
+    line_height = 28
+    section_spacing = 15
+    
+    # Controls Section
+    section_title = SMALL_FONT.render("🎮 CONTROLS", True, (255, 215, 0))
+    win.blit(section_title, (content_x, content_y))
+    content_y += 35
+    
+    controls = [
+        "W/↑ - Accelerate    S/↓ - Brake/Reverse",
+        "A/← - Turn Left     D/→ - Turn Right",
+        "SPACE - Fire Weapon (Player 1)",
+        "[ - Fire Weapon (Player 2)",
+        "ESC - Return to Menu"
+    ]
+    for ctrl in controls:
+        txt = TINY_FONT.render(ctrl, True, (255, 255, 255))
+        win.blit(txt, (content_x + 20, content_y))
+        content_y += line_height
+    
+    content_y += section_spacing
+    
+    # Power-ups Section
+    section_title = SMALL_FONT.render("⚡ POWER-UPS", True, (255, 215, 0))
+    win.blit(section_title, (content_x, content_y))
+    content_y += 35
+    
+    powerups_info = [
+        ("🟡 BOOST", "- Speed +80% for 5 seconds", (255, 215, 0)),
+        ("🟣 VULNERABILITY", "- Pass through walls (risky!)", (200, 0, 200)),
+        ("🟢 WEAPON", "- +1 ammo to stun opponents", (0, 255, 0))
+    ]
+    for name, desc, color in powerups_info:
+        name_txt = TINY_FONT.render(name, True, color)
+        desc_txt = TINY_FONT.render(desc, True, (255, 255, 255))
+        win.blit(name_txt, (content_x + 20, content_y))
+        win.blit(desc_txt, (content_x + 200, content_y))
+        content_y += line_height
+    
+    content_y += section_spacing
+    
+    # Mechanics Section
+    section_title = SMALL_FONT.render("🎯 GAME MECHANICS", True, (255, 215, 0))
+    win.blit(section_title, (content_x, content_y))
+    content_y += 35
+    
+    mechanics = [
+        "• Hit walls = BOUNCE BACK (unless boosted/vulnerable)",
+        "• Weapon hits = STUN opponent for 2-3 seconds",
+        "• Collect power-ups by driving through them",
+        "• Cross finish line to complete laps",
+        "• Beat your best lap time!"
+    ]
+    for mech in mechanics:
+        txt = TINY_FONT.render(mech, True, (255, 255, 255))
+        win.blit(txt, (content_x + 20, content_y))
+        content_y += line_height
+    
+    content_y += section_spacing
+    
+    # Pro Tips Section
+    section_title = SMALL_FONT.render("💡 PRO TIPS", True, (255, 215, 0))
+    win.blit(section_title, (content_x, content_y))
+    content_y += 35
+    
+    tips = [
+        "• Brake before corners, accelerate out",
+        "• Use boost on straightaways for max speed",
+        "• Save weapons for strategic moments",
+        "• Watch your speed - too fast = less control"
+    ]
+    for tip in tips:
+        txt = TINY_FONT.render(tip, True, (200, 255, 200))
+        win.blit(txt, (content_x + 20, content_y))
+        content_y += line_height
+    
+    # Back button
+    btn_w, btn_h = 200, 60
+    btn_x = (WIDTH - btn_w) // 2
+    btn_y = HEIGHT - 80
+    back_hover = draw_button(win, (btn_x, btn_y, btn_w, btn_h), "BACK", SMALL_FONT,
+                            (100, 50, 50), (150, 80, 80), (255, 255, 255))
+    
+    return back_hover
 
 def draw_map_selection(win, images, maps_list):
     for img, pos in images:
@@ -655,7 +810,7 @@ def draw_countdown(win, number):
     scaled = pygame.transform.rotozoom(txt, 0, scale)
     win.blit(scaled, ((WIDTH - scaled.get_width()) // 2, (HEIGHT - scaled.get_height()) // 2))
 
-def draw_modal(win, message, show_next=False):
+def draw_modal(win, message):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     win.blit(overlay, (0, 0))
@@ -670,57 +825,69 @@ def draw_modal(win, message, show_next=False):
     msg = MAIN_FONT.render(message, True, (255, 255, 255))
     win.blit(msg, (box_x + (box_w - msg.get_width()) // 2, box_y + 40))
 
-    # Buttons
+    # Buttons - only RESTART and MENU
     btn_w, btn_h = 160, 60
     spacing = 30
+    total_w = btn_w * 2 + spacing
+    start_x = box_x + (box_w - total_w) // 2
+    btn_y = box_y + box_h - btn_h - 40
     
-    if show_next:
-        total_w = btn_w * 3 + spacing * 2
-        start_x = box_x + (box_w - total_w) // 2
-        btn_y = box_y + box_h - btn_h - 40
-        
-        restart_hover = draw_button(win, (start_x, btn_y, btn_w, btn_h), "RESTART", SMALL_FONT,
-                                   (100, 220, 120), (140, 255, 170), (0, 0, 0))
-        next_hover = draw_button(win, (start_x + btn_w + spacing, btn_y, btn_w, btn_h), "NEXT", SMALL_FONT,
-                                (100, 150, 255), (140, 190, 255), (0, 0, 0))
-        quit_hover = draw_button(win, (start_x + (btn_w + spacing) * 2, btn_y, btn_w, btn_h), "MENU", SMALL_FONT,
-                                (220, 100, 100), (255, 140, 140), (0, 0, 0))
-        return restart_hover, next_hover, quit_hover
-    else:
-        total_w = btn_w * 2 + spacing
-        start_x = box_x + (box_w - total_w) // 2
-        btn_y = box_y + box_h - btn_h - 40
-        
-        restart_hover = draw_button(win, (start_x, btn_y, btn_w, btn_h), "RESTART", SMALL_FONT,
-                                   (100, 220, 120), (140, 255, 170), (0, 0, 0))
-        quit_hover = draw_button(win, (start_x + btn_w + spacing, btn_y, btn_w, btn_h), "MENU", SMALL_FONT,
-                                (220, 100, 100), (255, 140, 140), (0, 0, 0))
-        return restart_hover, False, quit_hover
+    restart_hover = draw_button(win, (start_x, btn_y, btn_w, btn_h), "RESTART", SMALL_FONT,
+                               (100, 220, 120), (140, 255, 170), (0, 0, 0))
+    quit_hover = draw_button(win, (start_x + btn_w + spacing, btn_y, btn_w, btn_h), "MENU", SMALL_FONT,
+                            (220, 100, 100), (255, 140, 140), (0, 0, 0))
+    return restart_hover, quit_hover
 
-def move_player(player_car):
+def move_player(player_car, player_car2=None):
     keys = pygame.key.get_pressed()
-    moved = False
-
-    if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-        player_car.rotate(left=True)
-    if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-        player_car.rotate(right=True)
-    if keys[pygame.K_w] or keys[pygame.K_UP]:
-        moved = True
-        player_car.move_forward()
-    if keys[pygame.K_s] or keys[pygame.K_DOWN]:
-        moved = True
-        player_car.move_backward()
     
-    if not moved:
+    # Player 1 controls (WASD) - only if not stunned
+    if not player_car.is_stunned():
+        moved = False
+        if keys[pygame.K_a]:
+            player_car.rotate(left=True)
+        if keys[pygame.K_d]:
+            player_car.rotate(right=True)
+        if keys[pygame.K_w]:
+            moved = True
+            player_car.move_forward()
+        if keys[pygame.K_s]:
+            moved = True
+            player_car.move_backward()
+        
+        if not moved:
+            player_car.reduce_speed()
+    else:
+        # Stunned - can't move
         player_car.reduce_speed()
+    
+    # Player 2 controls (Arrow keys) - only if not stunned
+    if player_car2:
+        if not player_car2.is_stunned():
+            moved2 = False
+            if keys[pygame.K_LEFT]:
+                player_car2.rotate(left=True)
+            if keys[pygame.K_RIGHT]:
+                player_car2.rotate(right=True)
+            if keys[pygame.K_UP]:
+                moved2 = True
+                player_car2.move_forward()
+            if keys[pygame.K_DOWN]:
+                moved2 = True
+                player_car2.move_backward()
+            
+            if not moved2:
+                player_car2.reduce_speed()
+        else:
+            # Stunned - can't move
+            player_car2.reduce_speed()
 
-def handle_collision(player_car, computer_car, powerups, projectiles, particles, current_map, game_info):
+def handle_collision(player_car, computer_car, powerups, projectiles, particles, current_map, game_info, player_car2=None, game_info2=None):
     border_mask = current_map["border_mask"]
     finish_mask = current_map["finish_mask"]
     finish_pos = current_map["finish_pos"]
     
-    # Car vs border
+    # Car vs border - Player 1
     if player_car.collide(border_mask) != None:
         poi = player_car.collide(border_mask)
         if poi:
@@ -774,10 +941,65 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
             else:
                 player_car.bounce()
 
+    # Car vs border - Player 2
+    if player_car2 and player_car2.collide(border_mask) != None:
+        poi = player_car2.collide(border_mask)
+        if poi:
+            img_w, img_h = player_car2.img.get_width(), player_car2.img.get_height()
+            
+            # Spark particles on collision
+            for _ in range(5):
+                particles.append(Particle(
+                    player_car2.x + img_w//2, 
+                    player_car2.y + img_h//2,
+                    (255, 200, 0),
+                    random.uniform(-3, 3),
+                    random.uniform(-3, 3),
+                    0.5
+                ))
+            
+            # Push through if boost or vulnerable, otherwise bounce
+            if player_car2.active_power == PU_BOOST or player_car2.vulnerable:
+                offset_x, offset_y = int(player_car2.x), int(player_car2.y)
+                overlap_x = poi[0] - offset_x
+                overlap_y = poi[1] - offset_y
+
+                center_x, center_y = img_w / 2.0, img_h / 2.0
+
+                vx = center_x - overlap_x
+                vy = center_y - overlap_y
+
+                if vx == 0 and vy == 0:
+                    rad = math.radians(player_car2.angle)
+                    vx = -math.sin(rad)
+                    vy = -math.cos(rad)
+
+                mag = math.hypot(vx, vy)
+                if mag != 0:
+                    vx /= mag
+                    vy /= mag
+
+                pushed = False
+                for step in range(6):
+                    push_amount = 1 + step
+                    player_car2.x += vx * push_amount
+                    player_car2.y += vy * push_amount
+                    if player_car2.collide(border_mask) is None:
+                        pushed = True
+                        break
+
+                if not pushed:
+                    player_car2.x, player_car2.y = player_car2.prev_x, player_car2.prev_y
+
+                player_car2.vel *= 0.5
+            else:
+                player_car2.bounce()
+
     # Finish line
-    computer_finish_point_collide = computer_car.collide(finish_mask, *finish_pos)
-    if computer_finish_point_collide != None:
-        return "lose"
+    if not player_car2:
+        computer_finish_point_collide = computer_car.collide(finish_mask, *finish_pos)
+        if computer_finish_point_collide != None:
+            return "lose"
 
     player_finish_point_collide = player_car.collide(finish_mask, *finish_pos)
     if player_finish_point_collide != None:
@@ -795,9 +1017,32 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                     random.uniform(-5, 5),
                     1.5
                 ))
-            return "win"
+            if player_car2:
+                return "p1_win"
+            else:
+                return "win"
+    
+    # Player 2 finish line
+    if player_car2:
+        player2_finish_point_collide = player_car2.collide(finish_mask, *finish_pos)
+        if player2_finish_point_collide != None:
+            if player2_finish_point_collide[1] == 0:
+                player_car2.bounce()
+            else:
+                lap_time = game_info2.complete_lap()
+                # Celebration particles
+                for _ in range(20):
+                    particles.append(Particle(
+                        finish_pos[0] + 50,
+                        finish_pos[1] + 50,
+                        random.choice([(100, 150, 255), (255, 100, 255), (100, 255, 255)]),
+                        random.uniform(-5, 5),
+                        random.uniform(-5, 5),
+                        1.5
+                    ))
+                return "p2_win"
 
-    # Player picks up powerups
+    # Player 1 picks up powerups
     px, py = int(player_car.x), int(player_car.y)
     to_remove = []
     for i, pu in enumerate(powerups):
@@ -815,6 +1060,26 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                     0.8
                 ))
     
+    # Player 2 picks up powerups
+    if player_car2:
+        p2x, p2y = int(player_car2.x), int(player_car2.y)
+        for i, pu in enumerate(powerups):
+            if i in to_remove:
+                continue
+            pux, puy = pu["pos"]
+            if math.hypot(pux - p2x, puy - p2y) < 30:
+                player_car2.apply_powerup(pu["type"])
+                to_remove.append(i)
+                # Pickup particles
+                for _ in range(10):
+                    particles.append(Particle(
+                        pux, puy,
+                        PU_COLORS.get(pu["type"], (255, 255, 255)),
+                        random.uniform(-4, 4),
+                        random.uniform(-4, 4),
+                        0.8
+                    ))
+    
     for i in sorted(to_remove, reverse=True):
         powerups.pop(i)
 
@@ -825,7 +1090,8 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
             projectiles.remove(p)
             continue
         
-        if p.owner == "player":
+        # Projectile hits AI
+        if p.owner in ["player", "player2"] and not player_car2:
             if p.rect().colliderect(pygame.Rect(computer_car.x, computer_car.y, 
                                                 computer_car.img.get_width(), 
                                                 computer_car.img.get_height())):
@@ -845,18 +1111,74 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                         1.0
                     ))
                 continue
+        
+        # Projectile hits player 2 (from player 1)
+        if p.owner == "player" and player_car2:
+            if p.rect().colliderect(pygame.Rect(player_car2.x, player_car2.y, 
+                                                player_car2.img.get_width(), 
+                                                player_car2.img.get_height())):
+                # Stun player 2 for 2 seconds
+                player_car2.stun(2.0)
+                projectiles.remove(p)
+                # Explosion particles
+                for _ in range(15):
+                    particles.append(Particle(
+                        p.x, p.y,
+                        (255, 100, 0),
+                        random.uniform(-6, 6),
+                        random.uniform(-6, 6),
+                        1.0
+                    ))
+                continue
+        
+        # Projectile hits player 1 (from player 2)
+        if p.owner == "player2" and player_car2:
+            if p.rect().colliderect(pygame.Rect(player_car.x, player_car.y, 
+                                                player_car.img.get_width(), 
+                                                player_car.img.get_height())):
+                # Stun player 1 for 2 seconds
+                player_car.stun(2.0)
+                projectiles.remove(p)
+                # Explosion particles
+                for _ in range(15):
+                    particles.append(Particle(
+                        p.x, p.y,
+                        (255, 100, 0),
+                        random.uniform(-6, 6),
+                        random.uniform(-6, 6),
+                        1.0
+                    ))
+                continue
     
     return None
 
-def reset_game_state(current_map_key):
-    global player_car, computer_car, powerups, projectiles, particles, game_info, last_spawn
+def reset_game_state(current_map_key, multiplayer=False):
+    global player_car, player_car2, computer_car, powerups, projectiles, particles, game_info, game_info2, last_spawn
     
     current_map = MAPS[current_map_key]
     PlayerCar.START_POS = current_map["player_start"]
     ComputerCar.START_POS = current_map["ai_start"]
     
-    player_car = PlayerCar(4, 4)
-    computer_car = ComputerCar(4, 4, current_map["path"])
+    player_car = PlayerCar(4, 4, player_num=1)
+    
+    # Set initial angle if specified in map
+    if "start_angle" in current_map:
+        player_car.angle = current_map["start_angle"]
+    
+    if multiplayer:
+        # Player 2 starts at AI position
+        player_car2 = PlayerCar(4, 4, player_num=2)
+        player_car2.x, player_car2.y = current_map["ai_start"]
+        player_car2.START_POS = current_map["ai_start"]
+        if "start_angle" in current_map:
+            player_car2.angle = current_map["start_angle"]
+        game_info2 = GameInfo()
+        computer_car = None
+    else:
+        player_car2 = None
+        game_info2 = None
+        computer_car = ComputerCar(4, 4, current_map["path"])
+    
     game_info = GameInfo()
     powerups = spawn_powerups(4, current_map["track_mask"], current_map["border_mask"])
     projectiles = []
@@ -873,7 +1195,10 @@ clock = pygame.time.Clock()
 
 # Initialize with classic map
 current_map_key = "classic"
-reset_game_state(current_map_key)
+is_multiplayer = False
+player_car2 = None
+game_info2 = None
+reset_game_state(current_map_key, is_multiplayer)
 images = get_map_images(current_map_key)
 
 state = 'menu'
@@ -881,6 +1206,13 @@ modal_result = None
 countdown_start = 0
 countdown_number = 0
 update_window_title('menu')
+
+# Add help state to window title updater
+def update_window_title_extended(state, current_map=None, lap=None):
+    if state == 'help':
+        pygame.display.set_caption("🏎️ Ultimate Racing Championship - Game Guide")
+    else:
+        update_window_title(state, current_map, lap)
 
 while run:
     clock.tick(FPS)
@@ -895,19 +1227,47 @@ while run:
                 run = False
                 break
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if hover_states[0]:  # Play
-                    reset_game_state(current_map_key)
+                if hover_states[0]:  # Single Player
+                    is_multiplayer = False
+                    reset_game_state(current_map_key, is_multiplayer)
                     images = get_map_images(current_map_key)
                     countdown_start = time.time()
                     countdown_number = COUNTDOWN_SECONDS
                     state = 'countdown'
                     update_window_title('countdown')
-                elif hover_states[1]:  # Select Map
+                elif hover_states[1]:  # Multiplayer
+                    is_multiplayer = True
+                    reset_game_state(current_map_key, is_multiplayer)
+                    images = get_map_images(current_map_key)
+                    countdown_start = time.time()
+                    countdown_number = COUNTDOWN_SECONDS
+                    state = 'countdown'
+                    update_window_title('countdown')
+                elif hover_states[2]:  # Select Map
                     state = 'map_select'
                     update_window_title('map_select')
-                elif hover_states[2]:  # Quit
+                elif hover_states[3]:  # Help
+                    state = 'help'
+                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Game Guide")
+                elif hover_states[4]:  # Quit
                     run = False
                     break
+        
+        pygame.display.update()
+        continue
+
+    # Help state
+    if state == 'help':
+        back_hover = draw_help_screen(WIN, images)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if back_hover:
+                    state = 'menu'
+                    update_window_title('menu')
         
         pygame.display.update()
         continue
@@ -929,7 +1289,7 @@ while run:
                     for is_hover, map_key in hover_states:
                         if is_hover:
                             current_map_key = map_key
-                            reset_game_state(current_map_key)
+                            reset_game_state(current_map_key, is_multiplayer)
                             images = get_map_images(current_map_key)
                             state = 'menu'
                             update_window_title('menu')
@@ -940,13 +1300,15 @@ while run:
 
     # Countdown state
     if state == 'countdown':
-        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key])
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2)
         
         elapsed = time.time() - countdown_start
         sec = COUNTDOWN_SECONDS - int(elapsed)
         if sec <= 0:
             state = 'playing'
             game_info.start_level()
+            if game_info2:
+                game_info2.start_level()
             update_window_title('playing', MAPS[current_map_key], game_info.laps)
         else:
             draw_countdown(WIN, sec)
@@ -962,6 +1324,8 @@ while run:
     # Playing state
     if state == 'playing':
         player_car.update_power_state()
+        if player_car2:
+            player_car2.update_power_state()
 
         # Periodic powerup spawn
         if time.time() - last_spawn > SPAWN_INTERVAL:
@@ -972,13 +1336,14 @@ while run:
         # Update particles
         particles = [p for p in particles if p.update(dt)]
 
-        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key])
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 break
             if event.type == pygame.KEYDOWN:
+                # Player 1 shoot (Space)
                 if event.key == pygame.K_SPACE and player_car.ammo > 0:
                     rad = math.radians(player_car.angle)
                     front_x = player_car.x - math.sin(rad) * (player_car.img.get_height()//2)
@@ -986,16 +1351,25 @@ while run:
                     proj = Projectile(front_x, front_y, player_car.angle, owner="player")
                     projectiles.append(proj)
                     player_car.ammo -= 1
+                # Player 2 shoot ([)
+                elif event.key == pygame.K_LEFTBRACKET and player_car2 and player_car2.ammo > 0:
+                    rad = math.radians(player_car2.angle)
+                    front_x = player_car2.x - math.sin(rad) * (player_car2.img.get_height()//2)
+                    front_y = player_car2.y - math.cos(rad) * (player_car2.img.get_height()//2)
+                    proj = Projectile(front_x, front_y, player_car2.angle, owner="player2")
+                    projectiles.append(proj)
+                    player_car2.ammo -= 1
                 elif event.key == pygame.K_ESCAPE:
                     state = 'menu'
                     update_window_title('menu')
 
-        move_player(player_car)
-        computer_car.move()
+        move_player(player_car, player_car2)
+        if computer_car:
+            computer_car.move()
 
         result = handle_collision(player_car, computer_car, powerups, projectiles, particles, 
-                                 MAPS[current_map_key], game_info)
-        if result in ("win", "lose"):
+                                 MAPS[current_map_key], game_info, player_car2, game_info2)
+        if result in ("win", "lose", "p1_win", "p2_win"):
             modal_result = result
             state = 'modal'
             update_window_title('modal')
@@ -1005,12 +1379,18 @@ while run:
 
     # Modal state
     if state == 'modal':
-        msg = "🏆 YOU WIN! 🏆" if modal_result == 'win' else "💥 YOU LOSE! 💥"
-        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key])
+        if modal_result == 'p1_win':
+            msg = "🏆 PLAYER 1 WINS! 🏆"
+        elif modal_result == 'p2_win':
+            msg = "🏆 PLAYER 2 WINS! 🏆"
+        elif modal_result == 'win':
+            msg = "🏆 YOU WIN! 🏆"
+        else:
+            msg = "💥 YOU LOSE! 💥"
         
-        show_next = modal_result == 'win'
-        buttons = draw_modal(WIN, msg, show_next)
-        restart_hover, next_hover, quit_hover = buttons
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2)
+        
+        restart_hover, quit_hover = draw_modal(WIN, msg)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -1018,14 +1398,8 @@ while run:
                 break
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if restart_hover:
-                    reset_game_state(current_map_key)
+                    reset_game_state(current_map_key, is_multiplayer)
                     images = get_map_images(current_map_key)
-                    countdown_start = time.time()
-                    countdown_number = COUNTDOWN_SECONDS
-                    state = 'countdown'
-                    update_window_title('countdown')
-                elif next_hover and show_next:
-                    # Continue to next lap
                     countdown_start = time.time()
                     countdown_number = COUNTDOWN_SECONDS
                     state = 'countdown'
