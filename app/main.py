@@ -50,10 +50,10 @@ HUD_FONT = pygame.font.SysFont("consolas", 16, bold=True)
 COUNTDOWN_FONT = pygame.font.SysFont("arial", 180, bold=True)
 
 # AI Path
-PATH = [(182, 115), (67, 153), (69, 532), (351, 803), (441, 701), (478, 565), 
+PATH = [(170, 200), (182, 115), (67, 153), (69, 532), (351, 803), (441, 701), (478, 565), 
         (624, 563), (687, 790), (819, 719), (804, 444), (685, 408), (490, 389), 
         (517, 312), (777, 278), (798, 101), (615, 80), (349, 94), (299, 421), 
-        (199, 391), (205, 193)]
+        (199, 391), (205, 193), (170, 200)]
 
 # Game Settings
 class GameSettings:
@@ -159,18 +159,11 @@ try:
     CITY_FINISH = pygame.image.load('imgs/city-finish.png')
     CITY_FINISH_MASK = pygame.mask.from_surface(CITY_FINISH)
     CITY_FINISH_POS = (510, 60)
-    CITY_PATH = [(100, 100), (216, 100), (333, 100), (450, 100), (566, 100), (683, 100), 
-                 (800, 100), (800, 133), (800, 166), (800, 200), (800, 233), (800, 266), 
-                 (800, 300), (775, 300), (750, 300), (725, 300), (700, 300), (675, 300), 
-                 (650, 300), (650, 350), (650, 400), (650, 450), (650, 500), (650, 550), 
-                 (650, 600), (675, 600), (700, 600), (725, 600), (750, 600), (775, 600), 
-                 (800, 600), (800, 633), (800, 666), (800, 700), (800, 733), (800, 766), 
-                 (800, 800), (683, 800), (566, 800), (450, 800), (333, 800), (216, 800), 
-                 (100, 800), (100, 766), (100, 733), (100, 700), (100, 666), (100, 633), 
-                 (100, 600), (125, 600), (150, 600), (175, 600), (200, 600), (225, 600), 
-                 (250, 600), (250, 550), (250, 500), (250, 450), (250, 400), (250, 350), 
-                 (250, 300), (225, 300), (200, 300), (175, 300), (150, 300), (125, 300), 
-                 (100, 300), (100, 266), (100, 233), (100, 200), (100, 166), (100, 133)]
+    CITY_PATH = [  (104, 91), (102, 279), (224, 297),
+             (229, 563), (111, 603), (125, 775),
+             (790, 779), (794, 613), (656, 575),
+             (662, 321), (794, 278), (798, 119),
+             (499, 101)]
     city_available = True
 except:
     city_available = False
@@ -401,8 +394,10 @@ class ComputerCar(AbstractCar):
     
     def update_path_point(self):
         target = self.path[self.current_point]
-        rect = pygame.Rect(self.x, self.y, self.img.get_width(), self.img.get_height())
-        if rect.collidepoint(*target):
+        target_x, target_y = target
+        # Use distance check instead of rect collision (more reliable)
+        dist = math.sqrt((self.x - target_x)**2 + (self.y - target_y)**2)
+        if dist < 20:
             self.current_point += 1
 
     def move(self):
@@ -415,7 +410,7 @@ class ComputerCar(AbstractCar):
                 self.vel = self.max_vel
 
         if self.current_point >= len(self.path):
-            return
+            self.current_point = 0  # Loop back to start of path
 
         self.calculate_angle()
         self.update_path_point()
@@ -1022,8 +1017,13 @@ def draw_map_selection(win, images, maps_list):
         name = MAIN_FONT.render(map_data["name"], True, (255, 255, 255))
         win.blit(name, (x + 20, y + 20))
         
-        # Map preview (small track image)
-        preview = pygame.transform.scale(map_data["track"], (150, 120))
+        # Map preview - composite of all layers (grass + track + border)
+        preview_surface = pygame.Surface((map_data["track"].get_width(), map_data["track"].get_height()))
+        preview_surface.blit(map_data["grass"], (0, 0))
+        preview_surface.blit(map_data["track"], (0, 0))
+        preview_surface.blit(map_data["border"], (0, 0))
+        
+        preview = pygame.transform.scale(preview_surface, (150, 120))
         win.blit(preview, (x + 20, y + 60))
         
         hover_states.append((is_hover, map_key))
@@ -1449,7 +1449,15 @@ def reset_game_state(current_map_key, multiplayer=False):
     else:
         player_car2 = None
         game_info2 = None
-        computer_car = ComputerCar(4, 4, current_map["path"])
+        # Use slower speed for City Circuit
+        if current_map_key == "city":
+            computer_car = ComputerCar(2, 3, current_map["path"])
+        else:
+            computer_car = ComputerCar(3, 3, current_map["path"])
+        computer_car.x, computer_car.y = current_map["ai_start"]
+        computer_car.START_POS = current_map["ai_start"]
+        if "start_angle" in current_map:
+            computer_car.angle = current_map["start_angle"]
         ai_game_info = GameInfo()  # Track AI laps
     
     game_info = GameInfo()
