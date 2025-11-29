@@ -622,15 +622,14 @@ def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_inf
     draw_text_with_shadow(win, f"TIME: {game_info.get_lap_time():.2f}s", HUD_FONT, 18, y_start + 20, (100, 255, 100))
     if game_info.best_time:
         draw_text_with_shadow(win, f"BEST: {game_info.best_time:.2f}s", HUD_FONT, 18, y_start + 40, (255, 200, 0))
-    draw_text_with_shadow(win, f"SPEED: {round(player_car.vel, 1)}px/s", HUD_FONT, 18, y_start + 60, (150, 200, 255))
-    draw_text_with_shadow(win, f"AMMO: {player_car.ammo}", HUD_FONT, 18, y_start + 80, (255, 100, 100))
+    draw_text_with_shadow(win, f"AMMO: {player_car.ammo}", HUD_FONT, 18, y_start + 60, (255, 100, 100))
     
     # Show active power if any
     if player_car.active_power:
         remaining = max(0, player_car.power_end_time - time.time())
         power_name = player_car.active_power.upper()
         power_color = (255, 215, 0) if player_car.active_power == PU_BOOST else (200, 0, 200) if player_car.active_power == PU_VULN else (0, 255, 0)
-        draw_text_with_shadow(win, f"PWR: {power_name[:4]} {remaining:.1f}s", HUD_FONT, 18, y_start + 100, power_color)
+        draw_text_with_shadow(win, f"PWR: {power_name[:4]} {remaining:.1f}s", HUD_FONT, 18, y_start + 80, power_color)
     
     # Player 2 HUD (if multiplayer)
     if player_car2 and game_info2:
@@ -649,15 +648,14 @@ def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_inf
         draw_text_with_shadow(win, f"TIME: {game_info2.get_lap_time():.2f}s", HUD_FONT, p2_text_x, y_start2 + 20, (100, 255, 100))
         if game_info2.best_time:
             draw_text_with_shadow(win, f"BEST: {game_info2.best_time:.2f}s", HUD_FONT, p2_text_x, y_start2 + 40, (255, 200, 0))
-        draw_text_with_shadow(win, f"SPEED: {round(player_car2.vel, 1)}px/s", HUD_FONT, p2_text_x, y_start2 + 60, (150, 200, 255))
-        draw_text_with_shadow(win, f"AMMO: {player_car2.ammo}", HUD_FONT, p2_text_x, y_start2 + 80, (255, 100, 100))
+        draw_text_with_shadow(win, f"AMMO: {player_car2.ammo}", HUD_FONT, p2_text_x, y_start2 + 60, (255, 100, 100))
         
         # Show active power if any
         if player_car2.active_power:
             remaining = max(0, player_car2.power_end_time - time.time())
             power_name = player_car2.active_power.upper()
             power_color = (255, 215, 0) if player_car2.active_power == PU_BOOST else (200, 0, 200) if player_car2.active_power == PU_VULN else (0, 255, 0)
-            draw_text_with_shadow(win, f"PWR: {power_name[:4]} {remaining:.1f}s", HUD_FONT, p2_text_x, y_start2 + 100, power_color)
+            draw_text_with_shadow(win, f"PWR: {power_name[:4]} {remaining:.1f}s", HUD_FONT, p2_text_x, y_start2 + 80, power_color)
     
     # AI HUD (if single player mode)
     elif ai_game_info:
