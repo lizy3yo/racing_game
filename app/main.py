@@ -65,6 +65,7 @@ class GameSettings:
         self.powerups_enabled = True  # Enable/disable powerups
         self.editing_laps = False
         self.laps_input = "1"
+        self.ai_difficulty = "medium"  # "easy", "medium", "hard", "extreme"
     
     def start_editing_laps(self):
         self.editing_laps = True
@@ -781,14 +782,13 @@ def draw_main_menu(win, images):
     btn_w, btn_h = 300, 70
     btn_x = (WIDTH - btn_w) // 2
     spacing = 20
-    start_y = HEIGHT // 2 - 90
+    start_y = HEIGHT // 2 - 50
     
     buttons = [
         ("SINGLE PLAYER", start_y),
         ("MULTIPLAYER", start_y + btn_h + spacing),
-        ("SELECT MAP", start_y + (btn_h + spacing) * 2),
-        ("OPTIONS", start_y + (btn_h + spacing) * 3),
-        ("QUIT", start_y + (btn_h + spacing) * 4)
+        ("OPTIONS", start_y + (btn_h + spacing) * 2),
+        ("QUIT", start_y + (btn_h + spacing) * 3)
     ]
     
     hover_states = []
@@ -1069,6 +1069,62 @@ def draw_options_menu(win, images, settings):
                             (100, 50, 50), (150, 80, 80), (255, 255, 255))
     
     return laps_hover, race_mode_hover, rotation_hover, powerups_hover, hud_hover, help_hover, back_hover
+
+def draw_difficulty_selection(win, images):
+    for img, pos in images:
+        win.blit(img, pos)
+
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    win.blit(overlay, (0, 0))
+
+    title = TITLE_FONT.render("SELECT DIFFICULTY", True, (255, 255, 255))
+    win.blit(title, ((WIDTH - title.get_width()) // 2, 50))
+
+    # Difficulty cards
+    card_w, card_h = 400, 120
+    spacing = 20
+    start_y = 220
+    
+    difficulties = [
+        ("EASY", "AI Speed: Slow", (100, 255, 100)),
+        ("MEDIUM", "AI Speed: Normal", (255, 215, 0)),
+        ("HARD", "AI Speed: Fast", (255, 150, 50)),
+        ("EXTREME", "AI Speed: Very Fast", (255, 50, 50))
+    ]
+    
+    hover_states = []
+    for i, (name, desc, color) in enumerate(difficulties):
+        x = (WIDTH - card_w) // 2
+        y = start_y + i * (card_h + spacing)
+        
+        # Card background
+        card_rect = (x, y, card_w, card_h)
+        mx, my = pygame.mouse.get_pos()
+        is_hover = x <= mx <= x + card_w and y <= my <= y + card_h
+        
+        bg_color = (80, 80, 120) if is_hover else (50, 50, 80)
+        pygame.draw.rect(win, bg_color, card_rect, border_radius=15)
+        pygame.draw.rect(win, color, card_rect, 4, border_radius=15)
+        
+        # Difficulty name
+        name_txt = MAIN_FONT.render(name, True, color)
+        win.blit(name_txt, (x + 20, y + 25))
+        
+        # Description
+        desc_txt = SMALL_FONT.render(desc, True, (200, 200, 200))
+        win.blit(desc_txt, (x + 20, y + 70))
+        
+        hover_states.append((is_hover, name.lower()))
+    
+    # Back button
+    btn_w, btn_h = 200, 60
+    btn_x = (WIDTH - btn_w) // 2
+    btn_y = HEIGHT - 100
+    back_hover = draw_button(win, (btn_x, btn_y, btn_w, btn_h), "BACK", SMALL_FONT,
+                            (100, 50, 50), (150, 80, 80), (255, 255, 255))
+    
+    return hover_states, back_hover
 
 def draw_map_selection(win, images, maps_list):
     for img, pos in images:
@@ -1599,11 +1655,22 @@ def reset_game_state(current_map_key, multiplayer=False):
     else:
         player_car2 = None
         game_info2 = None
-        # Use slower speed for City Circuit
+        
+        # Set AI speed based on difficulty
+        difficulty_speeds = {
+            "easy": (1.5, 2),      # Very slow
+            "medium": (2.5, 3),    # Normal
+            "hard": (3.5, 4),      # Fast
+            "extreme": (4.5, 5)    # Very fast
+        }
+        
+        ai_speed, ai_rotation = difficulty_speeds.get(game_settings.ai_difficulty, (2.5, 3))
+        
+        # Adjust for city circuit (slightly slower)
         if current_map_key == "city":
-            computer_car = ComputerCar(2, 3, current_map["path"])
-        else:
-            computer_car = ComputerCar(3, 3, current_map["path"])
+            ai_speed *= 0.8
+        
+        computer_car = ComputerCar(ai_speed, ai_rotation, current_map["path"])
         computer_car.x, computer_car.y = current_map["ai_start"]
         computer_car.START_POS = current_map["ai_start"]
         if "start_angle" in current_map:
@@ -1641,6 +1708,7 @@ state = 'menu'
 modal_result = None
 countdown_start = 0
 countdown_number = 0
+selected_difficulty = None
 update_window_title('menu')
 
 # Add help state to window title updater
@@ -1664,28 +1732,16 @@ while run:
                 break
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if hover_states[0]:  # Single Player
-                    is_multiplayer = False
-                    reset_game_state(current_map_key, is_multiplayer)
-                    images = get_map_images(current_map_key)
-                    countdown_start = time.time()
-                    countdown_number = COUNTDOWN_SECONDS
-                    state = 'countdown'
-                    update_window_title('countdown')
+                    state = 'difficulty_select'
+                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Difficulty")
                 elif hover_states[1]:  # Multiplayer
                     is_multiplayer = True
-                    reset_game_state(current_map_key, is_multiplayer)
-                    images = get_map_images(current_map_key)
-                    countdown_start = time.time()
-                    countdown_number = COUNTDOWN_SECONDS
-                    state = 'countdown'
-                    update_window_title('countdown')
-                elif hover_states[2]:  # Select Map
                     state = 'map_select'
                     update_window_title('map_select')
-                elif hover_states[3]:  # Options
+                elif hover_states[2]:  # Options
                     state = 'options'
                     update_window_title('options')
-                elif hover_states[4]:  # Quit
+                elif hover_states[3]:  # Quit
                     run = False
                     break
         
@@ -1756,6 +1812,30 @@ while run:
         pygame.display.update()
         continue
 
+    # Difficulty selection state
+    if state == 'difficulty_select':
+        hover_states, back_hover = draw_difficulty_selection(WIN, images)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if back_hover:
+                    state = 'menu'
+                    update_window_title('menu')
+                else:
+                    for is_hover, difficulty in hover_states:
+                        if is_hover:
+                            game_settings.ai_difficulty = difficulty
+                            is_multiplayer = False
+                            state = 'map_select'
+                            update_window_title('map_select')
+                            break
+        
+        pygame.display.update()
+        continue
+
     # Map selection state
     if state == 'map_select':
         maps_list = list(MAPS.items())
@@ -1767,16 +1847,23 @@ while run:
                 break
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if back_hover:
-                    state = 'menu'
-                    update_window_title('menu')
+                    # Go back to appropriate screen
+                    if is_multiplayer:
+                        state = 'menu'
+                        update_window_title('menu')
+                    else:
+                        state = 'difficulty_select'
+                        pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Difficulty")
                 else:
                     for is_hover, map_key in hover_states:
                         if is_hover:
                             current_map_key = map_key
                             reset_game_state(current_map_key, is_multiplayer)
                             images = get_map_images(current_map_key)
-                            state = 'menu'
-                            update_window_title('menu')
+                            countdown_start = time.time()
+                            countdown_number = COUNTDOWN_SECONDS
+                            state = 'countdown'
+                            update_window_title('countdown')
                             break
         
         pygame.display.update()
