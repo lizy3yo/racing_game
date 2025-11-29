@@ -896,40 +896,50 @@ def draw_help_screen(win, images):
     
     content_y += section_spacing
     
-    # Mechanics Section
+    # Mechanics Section (Column 1)
+    mechanics_y = content_y
     section_title = SMALL_FONT.render("🎯 GAME MECHANICS", True, (255, 215, 0))
-    win.blit(section_title, (content_x, content_y))
-    content_y += 35
+    win.blit(section_title, (content_x, mechanics_y))
+    mechanics_y += 35
     
     mechanics = [
-        "• Hit walls = BOUNCE BACK (unless boosted/vulnerable)",
-        "• Weapon hits = STUN opponent for 2-3 seconds",
-        "• Collect power-ups by driving through them",
+        "• Hit walls = BOUNCE BACK (unless",
+        "  boosted/vulnerable)",
+        "• Weapon hits = STUN opponent",
+        "  for 2-3 seconds",
+        "• Collect power-ups by driving",
+        "  through them",
         "• Cross finish line to complete laps",
         "• Beat your best lap time!"
     ]
     for mech in mechanics:
         txt = TINY_FONT.render(mech, True, (255, 255, 255))
-        win.blit(txt, (content_x + 20, content_y))
-        content_y += line_height
+        win.blit(txt, (content_x + 20, mechanics_y))
+        mechanics_y += line_height
     
-    content_y += section_spacing
-    
-    # Pro Tips Section
+    # Pro Tips Section (Column 2)
+    tips_y = content_y
     section_title = SMALL_FONT.render("💡 PRO TIPS", True, (255, 215, 0))
-    win.blit(section_title, (content_x, content_y))
-    content_y += 35
+    win.blit(section_title, (col2_x, tips_y))
+    tips_y += 35
     
     tips = [
-        "• Brake before corners, accelerate out",
-        "• Use boost on straightaways for max speed",
-        "• Save weapons for strategic moments",
-        "• Watch your speed - too fast = less control"
+        "• Brake before corners,",
+        "  accelerate out",
+        "• Use boost on straightaways",
+        "  for max speed",
+        "• Save weapons for strategic",
+        "  moments",
+        "• Watch your speed - too fast",
+        "  = less control"
     ]
     for tip in tips:
         txt = TINY_FONT.render(tip, True, (200, 255, 200))
-        win.blit(txt, (content_x + 20, content_y))
-        content_y += line_height
+        win.blit(txt, (col2_x, tips_y))
+        tips_y += line_height
+    
+    # Update content_y to after both sections
+    content_y = max(mechanics_y, tips_y) + section_spacing
     
     # Back button
     btn_w, btn_h = 200, 60
