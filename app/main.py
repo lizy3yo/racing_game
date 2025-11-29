@@ -62,6 +62,7 @@ class GameSettings:
         self.map_rotation = "manual"  # "manual", "per_lap"
         self.race_mode = "continuous"  # "continuous", "sprint"
         self.show_hud = True  # Show/hide HUD boxes
+        self.powerups_enabled = True  # Enable/disable powerups
         self.editing_laps = False
         self.laps_input = "3"
     
@@ -128,6 +129,12 @@ class GameSettings:
     
     def get_hud_text(self):
         return "Visible" if self.show_hud else "Hidden"
+    
+    def toggle_powerups(self):
+        self.powerups_enabled = not self.powerups_enabled
+    
+    def get_powerups_text(self):
+        return "Enabled" if self.powerups_enabled else "Disabled"
 
 game_settings = GameSettings()
 
@@ -211,7 +218,7 @@ class GameInfo:
         self.laps = 0
         self.best_time = None
         self.current_lap_start = 0
-        self.last_lap_time = 0  # Prevent multiple lap counts
+        self.last_lap_time = -10  # Initialize to -10 to allow first lap immediately
 
     def next_level(self):
         self.level += 1
@@ -546,7 +553,7 @@ def draw_text_with_shadow(win, text, font, x, y, color=(255, 255, 255), shadow_c
     win.blit(shadow, (x + offset, y + offset))
     win.blit(main, (x, y))
 
-def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_info2=None):
+def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_info2=None, ai_game_info=None):
     # Check if HUD should be shown
     if not game_settings.show_hud:
         return
@@ -555,6 +562,7 @@ def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_inf
     panel_color = (20, 20, 30, 120)
     accent_color = (255, 215, 0)
     accent_color2 = (100, 150, 255)
+    accent_color_ai = (255, 100, 100)
     
     # Bottom-left panel - Player 1 info (combined with ammo)
     panel_height = 140 if player_car.active_power else 115
@@ -606,8 +614,26 @@ def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_inf
             power_name = player_car2.active_power.upper()
             power_color = (255, 215, 0) if player_car2.active_power == PU_BOOST else (200, 0, 200) if player_car2.active_power == PU_VULN else (0, 255, 0)
             draw_text_with_shadow(win, f"PWR: {power_name[:4]} {remaining:.1f}s", HUD_FONT, p2_text_x, y_start2 + 100, power_color)
+    
+    # AI HUD (if single player mode)
+    elif ai_game_info:
+        # Bottom-right panel - AI info
+        ai_panel_height = 80
+        ai_x_offset = WIDTH - 420
+        ai_panel_rect = pygame.Rect(ai_x_offset, HEIGHT - ai_panel_height - 10, 220, ai_panel_height)
+        s_ai = pygame.Surface((ai_panel_rect.width, ai_panel_rect.height), pygame.SRCALPHA)
+        s_ai.fill(panel_color)
+        pygame.draw.rect(s_ai, accent_color_ai, s_ai.get_rect(), 2, border_radius=8)
+        win.blit(s_ai, ai_panel_rect.topleft)
+        
+        ai_y_start = HEIGHT - ai_panel_height - 5
+        ai_text_x = ai_x_offset + 8
+        draw_text_with_shadow(win, f"AI LAP: {ai_game_info.laps}/{game_settings.laps_to_win}", HUD_FONT, ai_text_x, ai_y_start, (255, 255, 255))
+        draw_text_with_shadow(win, f"TIME: {ai_game_info.get_lap_time():.2f}s", HUD_FONT, ai_text_x, ai_y_start + 20, (255, 150, 150))
+        if ai_game_info.best_time:
+            draw_text_with_shadow(win, f"BEST: {ai_game_info.best_time:.2f}s", HUD_FONT, ai_text_x, ai_y_start + 40, (255, 200, 100))
 
-def draw(win, images, player_car, computer_car, game_info, powerups, projectiles, particles, current_map, player_car2=None, game_info2=None):
+def draw(win, images, player_car, computer_car, game_info, powerups, projectiles, particles, current_map, player_car2=None, game_info2=None, ai_game_info=None):
     for img, pos in images:
         win.blit(img, pos)
 
@@ -664,7 +690,7 @@ def draw(win, images, player_car, computer_car, game_info, powerups, projectiles
         computer_car.draw(win)
     
     # Draw HUD
-    draw_hud(win, player_car, game_info, current_map, player_car2, game_info2)
+    draw_hud(win, player_car, game_info, current_map, player_car2, game_info2, ai_game_info)
 
 def draw_button(win, rect, text, font, base_color, hover_color, text_color=(0, 0, 0)):
     mx, my = pygame.mouse.get_pos()
@@ -820,6 +846,11 @@ def draw_help_screen(win, images):
         win.blit(desc_txt, (content_x + 200, content_y))
         content_y += line_height
     
+    # Note about disabling powerups
+    note_txt = TINY_FONT.render("* Can be disabled in OPTIONS menu", True, (150, 150, 150))
+    win.blit(note_txt, (content_x + 20, content_y))
+    content_y += line_height
+    
     content_y += section_spacing
     
     # Mechanics Section
@@ -879,9 +910,9 @@ def draw_options_menu(win, images, settings):
     win.blit(title, ((WIDTH - title.get_width()) // 2, 50))
 
     # Options panel
-    panel_w, panel_h = 600, 400
+    panel_w, panel_h = 600, 490
     panel_x = (WIDTH - panel_w) // 2
-    panel_y = 180
+    panel_y = 150
     
     pygame.draw.rect(win, (40, 40, 60), (panel_x, panel_y, panel_w, panel_h), border_radius=15)
     pygame.draw.rect(win, (255, 215, 0), (panel_x, panel_y, panel_w, panel_h), 4, border_radius=15)
@@ -955,10 +986,22 @@ def draw_options_menu(win, images, settings):
                                     settings.get_rotation_text(), TINY_FONT,
                                     (80, 80, 120), (120, 120, 160), (255, 255, 255))
     
-    # Option 4: Show HUD
+    # Option 4: Powerups
     opt_y += 90
-    label4 = SMALL_FONT.render("Show HUD:", True, (255, 255, 255))
+    label4 = SMALL_FONT.render("Powerups:", True, (255, 255, 255))
     win.blit(label4, (panel_x + 50, opt_y))
+    
+    powerups_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
+                                settings.get_powerups_text(), SMALL_FONT,
+                                (100, 80, 100), (140, 120, 140), (255, 255, 255))
+    
+    powerups_desc = TINY_FONT.render("Enable or disable all powerups", True, (200, 200, 200))
+    win.blit(powerups_desc, (panel_x + 50, opt_y + 45))
+    
+    # Option 5: Show HUD
+    opt_y += 90
+    label5 = SMALL_FONT.render("Show HUD:", True, (255, 255, 255))
+    win.blit(label5, (panel_x + 50, opt_y))
     
     hud_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
                            settings.get_hud_text(), SMALL_FONT,
@@ -981,7 +1024,7 @@ def draw_options_menu(win, images, settings):
                             "BACK", SMALL_FONT,
                             (100, 50, 50), (150, 80, 80), (255, 255, 255))
     
-    return laps_hover, race_mode_hover, rotation_hover, hud_hover, help_hover, back_hover
+    return laps_hover, race_mode_hover, rotation_hover, powerups_hover, hud_hover, help_hover, back_hover
 
 def draw_map_selection(win, images, maps_list):
     for img, pos in images:
@@ -1240,10 +1283,19 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
         computer_finish_point_collide = computer_car.collide(finish_mask, *finish_pos)
         if computer_finish_point_collide != None:
             # AI completed a lap
-            ai_game_info.complete_lap()
-            # Check if AI completed required laps
-            if ai_game_info.laps >= game_settings.laps_to_win:
-                return "lose"  # AI finished all laps first
+            lap_time = ai_game_info.complete_lap()
+            if lap_time == 0:  # Cooldown active, don't process
+                pass
+            else:
+                # Check if AI completed required laps
+                if ai_game_info.laps >= game_settings.laps_to_win:
+                    return "lose"  # AI finished all laps first
+                # Sprint mode: Check for map rotation per lap (only if not finished)
+                elif game_settings.race_mode == "sprint" and game_settings.map_rotation == "per_lap":
+                    return "change_map"
+                # Continuous mode: Check for map rotation per lap (only if not finished)
+                elif game_settings.race_mode == "continuous" and game_settings.map_rotation == "per_lap":
+                    return "change_map"
 
     player_finish_point_collide = player_car.collide(finish_mask, *finish_pos)
     if player_finish_point_collide != None:
@@ -1262,13 +1314,21 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                     1.5
                 ))
             
-            # Sprint Mode: Reset positions after each lap
-            if game_settings.race_mode == "sprint" and player_car2:
-                # Player 1 won this lap
-                if game_info.laps >= game_settings.laps_to_win:
-                    return "p1_win"  # Player 1 won the most laps
+            # Sprint Mode handling
+            if game_settings.race_mode == "sprint":
+                if player_car2:
+                    # Multiplayer sprint: Player 1 won this lap
+                    if game_info.laps >= game_settings.laps_to_win:
+                        return "p1_win"  # Player 1 won the most laps
+                    else:
+                        return "p1_lap_win"  # Player 1 won this lap, reset positions
                 else:
-                    return "p1_lap_win"  # Player 1 won this lap, reset positions
+                    # Single-player sprint: Check who won this lap
+                    if game_info.laps >= game_settings.laps_to_win:
+                        return "win"  # Player won all laps
+                    # Check for map rotation per lap (only if not finished)
+                    elif game_settings.map_rotation == "per_lap":
+                        return "change_map"
             
             # Continuous Mode: Check if all laps completed
             elif game_info.laps >= game_settings.laps_to_win:
@@ -1461,7 +1521,11 @@ def reset_game_state(current_map_key, multiplayer=False):
         ai_game_info = GameInfo()  # Track AI laps
     
     game_info = GameInfo()
-    powerups = spawn_powerups(4, current_map["track_mask"], current_map["border_mask"])
+    # Only spawn powerups if enabled
+    if game_settings.powerups_enabled:
+        powerups = spawn_powerups(4, current_map["track_mask"], current_map["border_mask"])
+    else:
+        powerups = []
     projectiles = []
     particles = []
     last_spawn = time.time()
@@ -1556,7 +1620,7 @@ while run:
 
     # Options state
     if state == 'options':
-        laps_hover, race_mode_hover, rotation_hover, hud_hover, help_hover, back_hover = draw_options_menu(WIN, images, game_settings)
+        laps_hover, race_mode_hover, rotation_hover, powerups_hover, hud_hover, help_hover, back_hover = draw_options_menu(WIN, images, game_settings)
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -1586,6 +1650,8 @@ while run:
                 elif rotation_hover and game_settings.race_mode != "continuous":
                     # Only allow clicking if not in continuous mode
                     game_settings.cycle_rotation()
+                elif powerups_hover:
+                    game_settings.toggle_powerups()
                 elif hud_hover:
                     game_settings.toggle_hud()
                 elif help_hover:
@@ -1628,7 +1694,7 @@ while run:
 
     # Countdown state
     if state == 'countdown':
-        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2)
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2, ai_game_info)
         
         elapsed = time.time() - countdown_start
         sec = COUNTDOWN_SECONDS - int(elapsed)
@@ -1657,8 +1723,8 @@ while run:
         if player_car2:
             player_car2.update_power_state()
 
-        # Periodic powerup spawn
-        if time.time() - last_spawn > SPAWN_INTERVAL:
+        # Periodic powerup spawn (only if enabled)
+        if game_settings.powerups_enabled and time.time() - last_spawn > SPAWN_INTERVAL:
             powerups.extend(spawn_powerups(1, MAPS[current_map_key]["track_mask"], 
                                           MAPS[current_map_key]["border_mask"]))
             last_spawn = time.time()
@@ -1666,7 +1732,7 @@ while run:
         # Update particles
         particles = [p for p in particles if p.update(dt)]
 
-        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2)
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2, ai_game_info)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -1749,7 +1815,7 @@ while run:
         else:
             msg = "💥 YOU LOSE! 💥"
         
-        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2)
+        draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2, ai_game_info)
         
         restart_hover, quit_hover = draw_modal(WIN, msg)
 
