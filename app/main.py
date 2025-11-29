@@ -58,13 +58,13 @@ PATH = [(170, 200), (182, 115), (67, 153), (69, 532), (351, 803), (441, 701), (4
 # Game Settings
 class GameSettings:
     def __init__(self):
-        self.laps_to_win = 3
+        self.laps_to_win = 1
         self.map_rotation = "manual"  # "manual", "per_lap"
         self.race_mode = "continuous"  # "continuous", "sprint"
         self.show_hud = True  # Show/hide HUD boxes
         self.powerups_enabled = True  # Enable/disable powerups
         self.editing_laps = False
-        self.laps_input = "3"
+        self.laps_input = "1"
     
     def start_editing_laps(self):
         self.editing_laps = True
@@ -189,7 +189,8 @@ MAPS = {
         "finish_pos": FINISH_POSITION,
         "path": PATH,
         "player_start": (205, 200),
-        "ai_start": (170, 200)
+        "ai_start": (170, 200),
+        "checkpoint": (490, 389)  # Halfway point on the track
     }
 }
 
@@ -207,7 +208,8 @@ if city_available:
         "path": CITY_PATH,
         "player_start": (430, 105),
         "ai_start": (430, 75),
-        "start_angle": 90
+        "start_angle": 90,
+        "checkpoint": (662, 575)  # Halfway point on city track
     }
 
 class GameInfo:
@@ -219,6 +221,9 @@ class GameInfo:
         self.best_time = None
         self.current_lap_start = 0
         self.last_lap_time = -10  # Initialize to -10 to allow first lap immediately
+        self.frozen_time = None  # For freezing timer when race ends
+        self.passed_halfway = False  # Track if player passed halfway point to prevent wrong-way finish
+        self.wrong_way_warning = 0  # Timestamp for showing wrong way warning
 
     def next_level(self):
         self.level += 1
@@ -235,10 +240,19 @@ class GameInfo:
         self.started = True
         self.level_start_time = time.time()
         self.current_lap_start = time.time()
+        self.frozen_time = None
+        self.passed_halfway = False  # Reset checkpoint for new race
+    
+    def freeze_time(self):
+        """Freeze the timer at current time"""
+        if self.started and self.frozen_time is None:
+            self.frozen_time = time.time() - self.level_start_time
 
     def get_level_time(self):
         if not self.started:
             return 0
+        if hasattr(self, 'frozen_time') and self.frozen_time is not None:
+            return round(self.frozen_time, 2)
         return round(time.time() - self.level_start_time, 2)
     
     def get_lap_time(self):
@@ -554,6 +568,35 @@ def draw_text_with_shadow(win, text, font, x, y, color=(255, 255, 255), shadow_c
     win.blit(main, (x, y))
 
 def draw_hud(win, player_car, game_info, current_map, player_car2=None, game_info2=None, ai_game_info=None):
+    # Draw wrong way warnings (always show, even if HUD is hidden)
+    current_time = time.time()
+    
+    # Player 1 wrong way warning
+    if hasattr(game_info, 'wrong_way_warning') and current_time - game_info.wrong_way_warning < 2.0:
+        warning_alpha = int(255 * (1 - (current_time - game_info.wrong_way_warning) / 2.0))
+        warning_text = "⚠️ WRONG WAY! ⚠️"
+        warning_surface = MAIN_FONT.render(warning_text, True, (255, 50, 50))
+        warning_x = (WIDTH - warning_surface.get_width()) // 2
+        warning_y = HEIGHT // 3
+        
+        # Pulsing effect
+        scale = 1.0 + 0.1 * math.sin(current_time * 10)
+        scaled_warning = pygame.transform.rotozoom(warning_surface, 0, scale)
+        win.blit(scaled_warning, (warning_x, warning_y))
+    
+    # Player 2 wrong way warning
+    if player_car2 and game_info2 and hasattr(game_info2, 'wrong_way_warning') and current_time - game_info2.wrong_way_warning < 2.0:
+        warning_alpha = int(255 * (1 - (current_time - game_info2.wrong_way_warning) / 2.0))
+        warning_text = "⚠️ P2 WRONG WAY! ⚠️"
+        warning_surface = SMALL_FONT.render(warning_text, True, (255, 100, 150))
+        warning_x = (WIDTH - warning_surface.get_width()) // 2
+        warning_y = HEIGHT // 3 + 60
+        
+        # Pulsing effect
+        scale = 1.0 + 0.1 * math.sin(current_time * 10)
+        scaled_warning = pygame.transform.rotozoom(warning_surface, 0, scale)
+        win.blit(scaled_warning, (warning_x, warning_y))
+    
     # Check if HUD should be shown
     if not game_settings.show_hud:
         return
@@ -1003,12 +1046,13 @@ def draw_options_menu(win, images, settings):
     label5 = SMALL_FONT.render("Show HUD:", True, (255, 255, 255))
     win.blit(label5, (panel_x + 50, opt_y))
     
+    # Show hint text above button
+    hud_desc = TINY_FONT.render("Press G during race to toggle", True, (200, 200, 200))
+    win.blit(hud_desc, (panel_x + 50, opt_y + 25))
+    
     hud_hover = draw_button(win, (btn_x, opt_y - 10, btn_w, btn_h), 
                            settings.get_hud_text(), SMALL_FONT,
                            (80, 100, 80), (120, 140, 120), (255, 255, 255))
-    
-    hud_desc = TINY_FONT.render("Press G during race to toggle", True, (200, 200, 200))
-    win.blit(hud_desc, (panel_x + 50, opt_y + 45))
 
     # Help button (above Back button)
     back_btn_w, back_btn_h = 200, 60
@@ -1093,7 +1137,7 @@ def draw_countdown(win, number):
     scaled = pygame.transform.rotozoom(txt, 0, scale)
     win.blit(scaled, ((WIDTH - scaled.get_width()) // 2, (HEIGHT - scaled.get_height()) // 2))
 
-def draw_modal(win, message):
+def draw_modal(win, message, winner_time=None, loser_time=None, winner_name=None, loser_name=None):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     win.blit(overlay, (0, 0))
@@ -1107,6 +1151,16 @@ def draw_modal(win, message):
 
     msg = MAIN_FONT.render(message, True, (255, 255, 255))
     win.blit(msg, (box_x + (box_w - msg.get_width()) // 2, box_y + 40))
+
+    # Display winner time only
+    if winner_time is not None:
+        time_y = box_y + 120
+        
+        # Winner time (centered)
+        winner_label = winner_name if winner_name else "Winner"
+        time_text = f"{winner_label} Time: {winner_time:.2f}s"
+        time_txt = SMALL_FONT.render(time_text, True, (100, 255, 100))
+        win.blit(time_txt, (box_x + (box_w - time_txt.get_width()) // 2, time_y))
 
     # Buttons - only RESTART and MENU
     btn_w, btn_h = 160, 60
@@ -1278,15 +1332,37 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
             else:
                 player_car2.bounce()
 
+    # Checkpoint detection - Player 1
+    checkpoint_pos = current_map.get("checkpoint", (0, 0))
+    checkpoint_radius = 80
+    player_dist_to_checkpoint = math.hypot(player_car.x - checkpoint_pos[0], player_car.y - checkpoint_pos[1])
+    if player_dist_to_checkpoint < checkpoint_radius:
+        game_info.passed_halfway = True
+    
+    # Checkpoint detection - Player 2
+    if player_car2:
+        player2_dist_to_checkpoint = math.hypot(player_car2.x - checkpoint_pos[0], player_car2.y - checkpoint_pos[1])
+        if player2_dist_to_checkpoint < checkpoint_radius:
+            game_info2.passed_halfway = True
+    
+    # Checkpoint detection - AI
+    if not player_car2 and ai_game_info:
+        ai_dist_to_checkpoint = math.hypot(computer_car.x - checkpoint_pos[0], computer_car.y - checkpoint_pos[1])
+        if ai_dist_to_checkpoint < checkpoint_radius:
+            ai_game_info.passed_halfway = True
+
     # Finish line - AI in single player mode
     if not player_car2:
         computer_finish_point_collide = computer_car.collide(finish_mask, *finish_pos)
-        if computer_finish_point_collide != None:
+        if computer_finish_point_collide != None and ai_game_info.passed_halfway:
             # AI completed a lap
             lap_time = ai_game_info.complete_lap()
             if lap_time == 0:  # Cooldown active, don't process
                 pass
             else:
+                # Reset checkpoint flag for next lap
+                ai_game_info.passed_halfway = False
+                
                 # Check if AI completed required laps
                 if ai_game_info.laps >= game_settings.laps_to_win:
                     return "lose"  # AI finished all laps first
@@ -1299,80 +1375,94 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
 
     player_finish_point_collide = player_car.collide(finish_mask, *finish_pos)
     if player_finish_point_collide != None:
-        lap_time = game_info.complete_lap()
-        if lap_time == 0:  # Cooldown active, don't process
-            pass
+        if not game_info.passed_halfway:
+            # Show wrong way warning
+            game_info.wrong_way_warning = time.time()
         else:
-            # Celebration particles
-            for _ in range(20):
-                particles.append(Particle(
-                    finish_pos[0] + 50,
-                    finish_pos[1] + 50,
-                    random.choice([(255, 215, 0), (255, 100, 100), (100, 255, 100)]),
-                    random.uniform(-5, 5),
-                    random.uniform(-5, 5),
-                    1.5
-                ))
-            
-            # Sprint Mode handling
-            if game_settings.race_mode == "sprint":
-                if player_car2:
-                    # Multiplayer sprint: Player 1 won this lap
-                    if game_info.laps >= game_settings.laps_to_win:
-                        return "p1_win"  # Player 1 won the most laps
-                    else:
-                        return "p1_lap_win"  # Player 1 won this lap, reset positions
-                else:
-                    # Single-player sprint: Check who won this lap
-                    if game_info.laps >= game_settings.laps_to_win:
-                        return "win"  # Player won all laps
-                    # Check for map rotation per lap (only if not finished)
-                    elif game_settings.map_rotation == "per_lap":
-                        return "change_map"
-            
-            # Continuous Mode: Check if all laps completed
-            elif game_info.laps >= game_settings.laps_to_win:
-                if player_car2:
-                    return "p1_win"  # Player 1 finished all laps first
-                else:
-                    return "win"  # Player beat AI
-            # Check for map rotation per lap (only if not finished)
-            elif game_settings.map_rotation == "per_lap":
-                return "change_map"
-    
-    # Player 2 finish line
-    if player_car2:
-        player2_finish_point_collide = player_car2.collide(finish_mask, *finish_pos)
-        if player2_finish_point_collide != None:
-            lap_time = game_info2.complete_lap()
+            lap_time = game_info.complete_lap()
             if lap_time == 0:  # Cooldown active, don't process
                 pass
             else:
+                # Reset checkpoint flag for next lap
+                game_info.passed_halfway = False
+                
                 # Celebration particles
                 for _ in range(20):
                     particles.append(Particle(
                         finish_pos[0] + 50,
                         finish_pos[1] + 50,
-                        random.choice([(100, 150, 255), (255, 100, 255), (100, 255, 255)]),
+                        random.choice([(255, 215, 0), (255, 100, 100), (100, 255, 100)]),
                         random.uniform(-5, 5),
                         random.uniform(-5, 5),
                         1.5
                     ))
                 
-                # Sprint Mode: Reset positions after each lap
+                # Sprint Mode handling
                 if game_settings.race_mode == "sprint":
-                    # Player 2 won this lap
-                    if game_info2.laps >= game_settings.laps_to_win:
-                        return "p2_win"  # Player 2 won the most laps
+                    if player_car2:
+                        # Multiplayer sprint: Player 1 won this lap
+                        if game_info.laps >= game_settings.laps_to_win:
+                            return "p1_win"  # Player 1 won the most laps
+                        else:
+                            return "p1_lap_win"  # Player 1 won this lap, reset positions
                     else:
-                        return "p2_lap_win"  # Player 2 won this lap, reset positions
+                        # Single-player sprint: Check who won this lap
+                        if game_info.laps >= game_settings.laps_to_win:
+                            return "win"  # Player won all laps
+                        # Check for map rotation per lap (only if not finished)
+                        elif game_settings.map_rotation == "per_lap":
+                            return "change_map"
                 
                 # Continuous Mode: Check if all laps completed
-                elif game_info2.laps >= game_settings.laps_to_win:
-                    return "p2_win"  # Player 2 finished all laps first
+                elif game_info.laps >= game_settings.laps_to_win:
+                    if player_car2:
+                        return "p1_win"  # Player 1 finished all laps first
+                    else:
+                        return "win"  # Player beat AI
                 # Check for map rotation per lap (only if not finished)
                 elif game_settings.map_rotation == "per_lap":
                     return "change_map"
+    
+    # Player 2 finish line
+    if player_car2:
+        player2_finish_point_collide = player_car2.collide(finish_mask, *finish_pos)
+        if player2_finish_point_collide != None:
+            if not game_info2.passed_halfway:
+                # Show wrong way warning
+                game_info2.wrong_way_warning = time.time()
+            else:
+                lap_time = game_info2.complete_lap()
+                if lap_time == 0:  # Cooldown active, don't process
+                    pass
+                else:
+                    # Reset checkpoint flag for next lap
+                    game_info2.passed_halfway = False
+                    
+                    # Celebration particles
+                    for _ in range(20):
+                        particles.append(Particle(
+                            finish_pos[0] + 50,
+                            finish_pos[1] + 50,
+                            random.choice([(100, 150, 255), (255, 100, 255), (100, 255, 255)]),
+                            random.uniform(-5, 5),
+                            random.uniform(-5, 5),
+                            1.5
+                        ))
+                    
+                    # Sprint Mode: Reset positions after each lap
+                    if game_settings.race_mode == "sprint":
+                        # Player 2 won this lap
+                        if game_info2.laps >= game_settings.laps_to_win:
+                            return "p2_win"  # Player 2 won the most laps
+                        else:
+                            return "p2_lap_win"  # Player 2 won this lap, reset positions
+                    
+                    # Continuous Mode: Check if all laps completed
+                    elif game_info2.laps >= game_settings.laps_to_win:
+                        return "p2_win"  # Player 2 finished all laps first
+                    # Check for map rotation per lap (only if not finished)
+                    elif game_settings.map_rotation == "per_lap":
+                        return "change_map"
 
     # Player 1 picks up powerups
     px, py = int(player_car.x), int(player_car.y)
@@ -1797,6 +1887,13 @@ while run:
             update_window_title('countdown')
         
         elif result in ("win", "lose", "p1_win", "p2_win"):
+            # Freeze all timers when race ends
+            game_info.freeze_time()
+            if game_info2:
+                game_info2.freeze_time()
+            if ai_game_info:
+                ai_game_info.freeze_time()
+            
             modal_result = result
             state = 'modal'
             update_window_title('modal')
@@ -1806,18 +1903,29 @@ while run:
 
     # Modal state
     if state == 'modal':
+        winner_time = None
+        winner_name = None
+        
         if modal_result == 'p1_win':
             msg = "🏆 PLAYER 1 WINS! 🏆"
+            winner_time = game_info.get_level_time()
+            winner_name = "Player 1"
         elif modal_result == 'p2_win':
             msg = "🏆 PLAYER 2 WINS! 🏆"
+            winner_time = game_info2.get_level_time()
+            winner_name = "Player 2"
         elif modal_result == 'win':
             msg = "🏆 YOU WIN! 🏆"
+            winner_time = game_info.get_level_time()
+            winner_name = "Your"
         else:
             msg = "💥 YOU LOSE! 💥"
+            winner_time = ai_game_info.get_level_time() if ai_game_info else None
+            winner_name = "AI"
         
         draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2, ai_game_info)
         
-        restart_hover, quit_hover = draw_modal(WIN, msg)
+        restart_hover, quit_hover = draw_modal(WIN, msg, winner_time, None, winner_name, None)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
