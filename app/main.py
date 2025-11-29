@@ -32,6 +32,10 @@ FINISH_POSITION = (140, 250)
 FERARRI = scale_image(pygame.image.load('imgs/fer.png'), 0.12)
 BLUE_CAR = scale_image(pygame.image.load('imgs/redbull.png'), 0.08)
 
+# Menu images for car selection
+FERRARI_MENU = pygame.image.load('imgs/ferrari-menu.png')
+REDBULL_MENU = pygame.image.load('imgs/redbull-menu.png')
+
 POWERUP_BOOST_IMG = scale_image(pygame.image.load('imgs/powerup_boost.png'), 0.3)
 POWERUP_VULN_IMG = scale_image(pygame.image.load('imgs/powerup_vuln.png'), 0.3)
 POWERUP_WEAPON_IMG = scale_image(pygame.image.load('imgs/powerup_weapon.png'), 0.3)
@@ -208,8 +212,8 @@ if city_available:
         "finish_mask": CITY_FINISH_MASK,
         "finish_pos": CITY_FINISH_POS,
         "path": CITY_PATH,
-        "player_start": (430, 105),
-        "ai_start": (430, 75),
+        "player_start": (430, 85),  # Moved up from 105 to 85
+        "ai_start": (430, 55),      # Moved up from 75 to 55
         "start_angle": 90,
         "checkpoint": (662, 575)  # Halfway point on city track
     }
@@ -1080,6 +1084,157 @@ def draw_options_menu(win, images, settings):
     
     return laps_hover, race_mode_hover, rotation_hover, powerups_hover, hud_hover, help_hover, back_hover
 
+def draw_car_selection(win, images, is_multiplayer=False, stage=1, p1_car=-1, p2_car=-1):
+    """Draw car selection screen"""
+    for img, pos in images:
+        win.blit(img, pos)
+
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    win.blit(overlay, (0, 0))
+
+    # Title and prompt
+    if not is_multiplayer:
+        title_text = "SELECT YOUR CAR"
+        prompt_text = ""
+    else:
+        title_text = "SELECT CARS"
+        if stage == 1:
+            prompt_text = "PLAYER 1 - PICK YOUR CAR"
+        elif stage == 2:
+            prompt_text = "PLAYER 2 - PICK YOUR CAR"
+        else:
+            prompt_text = "PRESS CONTINUE TO START"
+    
+    title = TITLE_FONT.render(title_text, True, (255, 255, 255))
+    win.blit(title, ((WIDTH - title.get_width()) // 2, 30))
+    
+    if prompt_text:
+        prompt_color = (255, 215, 0) if stage == 1 else (100, 150, 255) if stage == 2 else (100, 255, 100)
+        prompt = MAIN_FONT.render(prompt_text, True, prompt_color)
+        win.blit(prompt, ((WIDTH - prompt.get_width()) // 2, 100))
+
+    # Car cards
+    card_w, card_h = 350, 300
+    spacing = 60
+    start_x = (WIDTH - (card_w * 2 + spacing)) // 2
+    card_y = 280  # Moved down for better spacing
+    
+    cars = [
+        ("FERRARI", FERRARI_MENU, (255, 50, 50)),
+        ("RED BULL", REDBULL_MENU, (50, 100, 255))
+    ]
+    
+    hover_states = []
+    for i, (name, car_img, color) in enumerate(cars):
+        x = start_x + i * (card_w + spacing)
+        y = card_y
+        
+        # Card background
+        card_rect = (x, y, card_w, card_h)
+        mx, my = pygame.mouse.get_pos()
+        is_hover = x <= mx <= x + card_w and y <= my <= y + card_h
+        
+        bg_color = (80, 80, 120) if is_hover else (50, 50, 80)
+        pygame.draw.rect(win, bg_color, card_rect, border_radius=15)
+        
+        # Draw border with player selection indicators
+        border_width = 4
+        if is_multiplayer:
+            # Check if this car is selected by P1 or P2
+            if i == p1_car and i == p2_car:
+                # Both selected same car - draw split border
+                pygame.draw.rect(win, (255, 215, 0), (x, y, card_w // 2, card_h), border_width, border_radius=15)
+                pygame.draw.rect(win, (100, 150, 255), (x + card_w // 2, y, card_w // 2, card_h), border_width, border_radius=15)
+            elif i == p1_car:
+                # P1 selected - gold border
+                pygame.draw.rect(win, (255, 215, 0), card_rect, border_width, border_radius=15)
+            elif i == p2_car:
+                # P2 selected - blue border
+                pygame.draw.rect(win, (100, 150, 255), card_rect, border_width, border_radius=15)
+            else:
+                # Not selected - car color border
+                pygame.draw.rect(win, color, card_rect, border_width, border_radius=15)
+        else:
+            pygame.draw.rect(win, color, card_rect, border_width, border_radius=15)
+        
+        # Player indicators on selected cards
+        if is_multiplayer and (i == p1_car or i == p2_car):
+            indicator_y = y + 10
+            if i == p1_car:
+                p1_txt = TINY_FONT.render("P1", True, (255, 215, 0))
+                win.blit(p1_txt, (x + 10, indicator_y))
+            if i == p2_car:
+                p2_txt = TINY_FONT.render("P2", True, (100, 150, 255))
+                p2_x = x + card_w - 30 if i == p1_car else x + 10
+                win.blit(p2_txt, (p2_x, indicator_y))
+        
+        # Car name
+        name_txt = MAIN_FONT.render(name, True, color)
+        win.blit(name_txt, (x + (card_w - name_txt.get_width()) // 2, y + 20))
+        
+        # Car image (scaled to fit card with padding)
+        # Calculate scale to fit within card (with 40px padding on each side)
+        max_width = card_w - 80
+        max_height = card_h - 160  # Space for title and stats
+        
+        # Get original size
+        orig_w = car_img.get_width()
+        orig_h = car_img.get_height()
+        
+        # Calculate scale to fit
+        scale_w = max_width / orig_w
+        scale_h = max_height / orig_h
+        car_scale = min(scale_w, scale_h)
+        
+        scaled_car = pygame.transform.rotozoom(car_img, 0, car_scale)
+        
+        # Center the car horizontally and vertically
+        car_x = x + (card_w - scaled_car.get_width()) // 2
+        
+        # Calculate vertical center (between title and stats)
+        title_bottom = y + 60  # Title area
+        stats_top = y + card_h - 60  # Stats area
+        available_space = stats_top - title_bottom
+        car_y = title_bottom + (available_space - scaled_car.get_height()) // 2
+        
+        win.blit(scaled_car, (car_x, car_y))
+        
+        # Stats
+        stats_y = y + card_h - 60
+        stats = [
+            "Speed: High",
+            "Handling: Excellent"
+        ]
+        for j, stat in enumerate(stats):
+            stat_txt = TINY_FONT.render(stat, True, (200, 200, 200))
+            win.blit(stat_txt, (x + 20, stats_y + j * 20))
+        
+        hover_states.append((is_hover, i))
+    
+    # Buttons
+    btn_w, btn_h = 200, 60
+    btn_y = HEIGHT - 100
+    
+    continue_hover = False
+    if is_multiplayer and stage == 3:
+        # Show Continue button when both selected
+        btn_spacing = 20
+        total_w = btn_w * 2 + btn_spacing
+        start_x = (WIDTH - total_w) // 2
+        
+        continue_hover = draw_button(win, (start_x, btn_y, btn_w, btn_h), "CONTINUE", SMALL_FONT,
+                                     (100, 220, 120), (140, 255, 170), (0, 0, 0))
+        back_hover = draw_button(win, (start_x + btn_w + btn_spacing, btn_y, btn_w, btn_h), "BACK", SMALL_FONT,
+                                (100, 50, 50), (150, 80, 80), (255, 255, 255))
+    else:
+        # Just back button
+        btn_x = (WIDTH - btn_w) // 2
+        back_hover = draw_button(win, (btn_x, btn_y, btn_w, btn_h), "BACK", SMALL_FONT,
+                                (100, 50, 50), (150, 80, 80), (255, 255, 255))
+    
+    return hover_states, back_hover, continue_hover
+
 def draw_difficulty_selection(win, images):
     for img, pos in images:
         win.blit(img, pos)
@@ -1793,13 +1948,17 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
     return None
 
 def reset_game_state(current_map_key, multiplayer=False):
-    global player_car, player_car2, computer_car, powerups, projectiles, particles, game_info, game_info2, ai_game_info, last_spawn
+    global player_car, player_car2, computer_car, powerups, projectiles, particles, game_info, game_info2, ai_game_info, last_spawn, selected_car_p1, selected_car_p2
     
     current_map = MAPS[current_map_key]
     PlayerCar.START_POS = current_map["player_start"]
     ComputerCar.START_POS = current_map["ai_start"]
     
     player_car = PlayerCar(4, 4, player_num=1)
+    
+    # Set player 1 car image based on selection
+    player_car.img = FERARRI if selected_car_p1 == 0 else BLUE_CAR
+    PlayerCar.IMG = player_car.img
     
     # Set initial angle if specified in map
     if "start_angle" in current_map:
@@ -1808,6 +1967,10 @@ def reset_game_state(current_map_key, multiplayer=False):
     if multiplayer:
         # Player 2 starts at AI position
         player_car2 = PlayerCar(4, 4, player_num=2)
+        
+        # Set player 2 car image based on selection
+        player_car2.img = FERARRI if selected_car_p2 == 0 else BLUE_CAR
+        
         player_car2.x, player_car2.y = current_map["ai_start"]
         player_car2.START_POS = current_map["ai_start"]
         if "start_angle" in current_map:
@@ -1864,6 +2027,8 @@ is_multiplayer = False
 player_car2 = None
 game_info2 = None
 ai_game_info = None
+selected_car_p1 = 0  # 0 = Ferrari, 1 = Red Bull
+selected_car_p2 = 1  # Default different car for P2
 reset_game_state(current_map_key, is_multiplayer)
 images = get_map_images(current_map_key)
 
@@ -1877,6 +2042,7 @@ player2_name = ""
 name_entry_stage = 1  # 1 for first player, 2 for second player
 leaderboard_mode = "single_player"
 leaderboard_difficulty = "easy"  # For single player difficulty filter
+car_selection_stage = 1  # For multiplayer: 1 = P1 selecting, 2 = P2 selecting, 3 = both selected
 update_window_title('menu')
 
 # Add help state to window title updater
@@ -1900,12 +2066,13 @@ while run:
                 break
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if hover_states[0]:  # Single Player
-                    state = 'difficulty_select'
-                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Difficulty")
+                    is_multiplayer = False
+                    state = 'car_select'
+                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Car")
                 elif hover_states[1]:  # Multiplayer
                     is_multiplayer = True
-                    state = 'map_select'
-                    update_window_title('map_select')
+                    state = 'car_select'
+                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Cars")
                 elif hover_states[2]:  # Leaderboard
                     state = 'leaderboard'
                     leaderboard_mode = 'single_player'
@@ -1985,6 +2152,50 @@ while run:
         pygame.display.update()
         continue
 
+    # Car selection state
+    if state == 'car_select':
+        p1_display = selected_car_p1 if car_selection_stage >= 2 else -1
+        p2_display = selected_car_p2 if car_selection_stage >= 3 else -1
+        
+        hover_states, back_hover, continue_hover = draw_car_selection(WIN, images, is_multiplayer, car_selection_stage, p1_display, p2_display)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if back_hover:
+                    car_selection_stage = 1
+                    state = 'menu'
+                    update_window_title('menu')
+                elif continue_hover and is_multiplayer and car_selection_stage == 3:
+                    # Both players selected, continue to map selection
+                    car_selection_stage = 1
+                    state = 'map_select'
+                    update_window_title('map_select')
+                else:
+                    for is_hover, car_index in hover_states:
+                        if is_hover:
+                            if is_multiplayer:
+                                if car_selection_stage == 1:
+                                    # P1 selecting
+                                    selected_car_p1 = car_index
+                                    car_selection_stage = 2
+                                elif car_selection_stage == 2:
+                                    # P2 selecting
+                                    selected_car_p2 = car_index
+                                    car_selection_stage = 3
+                            else:
+                                # Single player
+                                selected_car_p1 = car_index
+                                selected_car_p2 = 1 - car_index
+                                state = 'difficulty_select'
+                                pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Difficulty")
+                            break
+        
+        pygame.display.update()
+        continue
+
     # Difficulty selection state
     if state == 'difficulty_select':
         hover_states, back_hover = draw_difficulty_selection(WIN, images)
@@ -1995,8 +2206,8 @@ while run:
                 break
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if back_hover:
-                    state = 'menu'
-                    update_window_title('menu')
+                    state = 'car_select'
+                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Car")
                 else:
                     for is_hover, difficulty in hover_states:
                         if is_hover:
@@ -2022,8 +2233,8 @@ while run:
                 if back_hover:
                     # Go back to appropriate screen
                     if is_multiplayer:
-                        state = 'menu'
-                        update_window_title('menu')
+                        state = 'car_select'
+                        pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Cars")
                     else:
                         state = 'difficulty_select'
                         pygame.display.set_caption("🏎️ Ultimate Racing Championship - Select Difficulty")
