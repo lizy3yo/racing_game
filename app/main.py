@@ -1667,11 +1667,12 @@ def reset_game_state(current_map_key, multiplayer=False):
         game_info2 = None
         
         # Set AI speed based on difficulty
+        # Player max speed is 4, rotation is 4
         difficulty_speeds = {
-            "easy": (1.5, 2),      # Very slow
-            "medium": (2.5, 3),    # Normal
-            "hard": (3.5, 4),      # Fast
-            "extreme": (4.5, 5)    # Very fast
+            "easy": (2.5, 2.5),    # Slow but not too slow
+            "medium": (3.2, 3.5),  # Moderate challenge
+            "hard": (4.0, 4.0),    # Same as player
+            "extreme": (5.0, 5.5)  # Faster than player
         }
         
         ai_speed, ai_rotation = difficulty_speeds.get(game_settings.ai_difficulty, (2.5, 3))
