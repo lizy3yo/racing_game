@@ -1112,7 +1112,7 @@ def draw_car_selection(win, images, is_multiplayer=False, stage=1, p1_car=-1, p2
     if prompt_text:
         prompt_color = (255, 215, 0) if stage == 1 else (100, 150, 255) if stage == 2 else (100, 255, 100)
         prompt = MAIN_FONT.render(prompt_text, True, prompt_color)
-        win.blit(prompt, ((WIDTH - prompt.get_width()) // 2, 100))
+        win.blit(prompt, ((WIDTH - prompt.get_width()) // 2, 140))  # Moved from 100 to 140
 
     # Car cards
     card_w, card_h = 350, 300
@@ -1321,9 +1321,10 @@ def draw_map_selection(win, images, maps_list):
         pygame.draw.rect(win, color, card_rect, border_radius=15)
         pygame.draw.rect(win, (255, 215, 0), card_rect, 4, border_radius=15)
         
-        # Map name
+        # Map name (centered)
         name = MAIN_FONT.render(map_data["name"], True, (255, 255, 255))
-        win.blit(name, (x + 20, y + 20))
+        name_x = x + (card_w - name.get_width()) // 2
+        win.blit(name, (name_x, y + 20))
         
         # Map preview - composite of all layers (grass + track + border)
         preview_surface = pygame.Surface((map_data["track"].get_width(), map_data["track"].get_height()))
@@ -1331,8 +1332,10 @@ def draw_map_selection(win, images, maps_list):
         preview_surface.blit(map_data["track"], (0, 0))
         preview_surface.blit(map_data["border"], (0, 0))
         
+        # Center the preview
         preview = pygame.transform.scale(preview_surface, (150, 120))
-        win.blit(preview, (x + 20, y + 60))
+        preview_x = x + (card_w - 150) // 2
+        win.blit(preview, (preview_x, y + 60))
         
         hover_states.append((is_hover, map_key))
     
