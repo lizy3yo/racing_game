@@ -3,6 +3,7 @@ import time
 import math
 import random
 from utils import blit_text_center, scale_image, blit_rotate_center
+from leaderboard import add_single_player_record, add_multiplayer_record, get_top_records
 pygame.font.init()
 
 # Game Constants
@@ -780,13 +781,14 @@ def draw_main_menu(win, images):
     btn_w, btn_h = 300, 70
     btn_x = (WIDTH - btn_w) // 2
     spacing = 20
-    start_y = HEIGHT // 2 - 50
+    start_y = HEIGHT // 2 - 90
     
     buttons = [
         ("SINGLE PLAYER", start_y),
         ("MULTIPLAYER", start_y + btn_h + spacing),
-        ("OPTIONS", start_y + (btn_h + spacing) * 2),
-        ("QUIT", start_y + (btn_h + spacing) * 3)
+        ("LEADERBOARD", start_y + (btn_h + spacing) * 2),
+        ("OPTIONS", start_y + (btn_h + spacing) * 3),
+        ("QUIT", start_y + (btn_h + spacing) * 4)
     ]
     
     hover_states = []
@@ -1200,6 +1202,158 @@ def draw_countdown(win, number):
     txt = COUNTDOWN_FONT.render(str(number), True, (255, color_intensity, 0))
     scaled = pygame.transform.rotozoom(txt, 0, scale)
     win.blit(scaled, ((WIDTH - scaled.get_width()) // 2, (HEIGHT - scaled.get_height()) // 2))
+
+def draw_name_entry(win, images, current_name, prompt="ENTER YOUR NAME"):
+    """Draw name entry screen for leaderboard"""
+    for img, pos in images:
+        win.blit(img, pos)
+    
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    win.blit(overlay, (0, 0))
+    
+    box_w, box_h = 600, 300
+    box_x = (WIDTH - box_w) // 2
+    box_y = (HEIGHT - box_h) // 2
+    
+    pygame.draw.rect(win, (40, 40, 60), (box_x, box_y, box_w, box_h), border_radius=15)
+    pygame.draw.rect(win, (255, 215, 0), (box_x, box_y, box_w, box_h), 4, border_radius=15)
+    
+    # Prompt
+    prompt_txt = MAIN_FONT.render(prompt, True, (255, 215, 0))
+    win.blit(prompt_txt, (box_x + (box_w - prompt_txt.get_width()) // 2, box_y + 40))
+    
+    # Name input box
+    input_w, input_h = 400, 60
+    input_x = box_x + (box_w - input_w) // 2
+    input_y = box_y + 120
+    
+    pygame.draw.rect(win, (60, 60, 80), (input_x, input_y, input_w, input_h), border_radius=10)
+    pygame.draw.rect(win, (255, 215, 0), (input_x, input_y, input_w, input_h), 3, border_radius=10)
+    
+    # Display name with cursor
+    display_name = current_name + "_"
+    name_txt = MAIN_FONT.render(display_name, True, (255, 255, 255))
+    win.blit(name_txt, (input_x + 20, input_y + 15))
+    
+    # Instructions
+    inst_txt = TINY_FONT.render("Press ENTER to continue (max 10 characters)", True, (200, 200, 200))
+    win.blit(inst_txt, (box_x + (box_w - inst_txt.get_width()) // 2, box_y + 220))
+
+def draw_leaderboard(win, images, mode="single_player", difficulty="easy"):
+    """Draw leaderboard screen"""
+    for img, pos in images:
+        win.blit(img, pos)
+    
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    win.blit(overlay, (0, 0))
+    
+    title_text = "SINGLE PLAYER RECORDS" if mode == "single_player" else "MULTIPLAYER RECORDS"
+    title = TITLE_FONT.render(title_text, True, (255, 215, 0))
+    win.blit(title, ((WIDTH - title.get_width()) // 2, 30))
+    
+    # Difficulty tabs for single player
+    difficulty_tabs = []
+    if mode == "single_player":
+        tab_y = 110
+        tab_w = 150
+        tab_h = 40
+        tab_spacing = 10
+        difficulties = ["easy", "medium", "hard", "extreme"]
+        total_w = tab_w * 4 + tab_spacing * 3
+        start_x = (WIDTH - total_w) // 2
+        
+        for i, diff in enumerate(difficulties):
+            tab_x = start_x + i * (tab_w + tab_spacing)
+            is_active = diff == difficulty
+            
+            # Tab colors
+            if is_active:
+                tab_color = (100, 150, 100) if diff == "easy" else (150, 150, 100) if diff == "medium" else (150, 100, 50) if diff == "hard" else (150, 50, 50)
+                border_color = (150, 255, 150) if diff == "easy" else (255, 255, 150) if diff == "medium" else (255, 150, 100) if diff == "hard" else (255, 100, 100)
+            else:
+                tab_color = (40, 40, 60)
+                border_color = (100, 100, 120)
+            
+            # Draw tab
+            tab_rect = (tab_x, tab_y, tab_w, tab_h)
+            pygame.draw.rect(win, tab_color, tab_rect, border_radius=8)
+            pygame.draw.rect(win, border_color, tab_rect, 2, border_radius=8)
+            
+            # Tab text
+            tab_txt = TINY_FONT.render(diff.upper(), True, (255, 255, 255))
+            win.blit(tab_txt, (tab_x + (tab_w - tab_txt.get_width()) // 2, tab_y + 12))
+            
+            # Check hover
+            mx, my = pygame.mouse.get_pos()
+            is_hover = tab_x <= mx <= tab_x + tab_w and tab_y <= my <= tab_y + tab_h
+            difficulty_tabs.append((is_hover, diff))
+    
+    # Get records (filtered by difficulty for single player)
+    if mode == "single_player":
+        records = get_top_records(mode, 10, difficulty)
+    else:
+        records = get_top_records(mode, 10)
+    
+    # Display records
+    start_y = 170 if mode == "single_player" else 150
+    line_height = 45
+    
+    if not records:
+        no_records = MAIN_FONT.render("No records yet!", True, (200, 200, 200))
+        win.blit(no_records, ((WIDTH - no_records.get_width()) // 2, HEIGHT // 2))
+    else:
+        for i, record in enumerate(records):
+            y = start_y + i * line_height
+            rank_color = (255, 215, 0) if i == 0 else (192, 192, 192) if i == 1 else (205, 127, 50) if i == 2 else (255, 255, 255)
+            
+            # Rank
+            rank_txt = SMALL_FONT.render(f"#{i+1}", True, rank_color)
+            win.blit(rank_txt, (100, y))
+            
+            if mode == "single_player":
+                # Name
+                name_txt = SMALL_FONT.render(record["name"], True, (255, 255, 255))
+                win.blit(name_txt, (180, y))
+                
+                # Time
+                time_txt = SMALL_FONT.render(f"{record['time']:.2f}s", True, (100, 255, 100))
+                win.blit(time_txt, (350, y))
+                
+                # Map & Difficulty
+                info_txt = TINY_FONT.render(f"{record['map']} - {record['difficulty'].upper()}", True, (200, 200, 200))
+                win.blit(info_txt, (500, y + 5))
+            else:
+                # Winner name only
+                name_txt = SMALL_FONT.render(record['winner'], True, (255, 255, 255))
+                win.blit(name_txt, (180, y))
+                
+                # Time
+                time_txt = SMALL_FONT.render(f"{record['time']:.2f}s", True, (100, 255, 100))
+                win.blit(time_txt, (400, y))
+                
+                # Map
+                map_txt = TINY_FONT.render(record['map'], True, (200, 200, 200))
+                win.blit(map_txt, (550, y + 5))
+    
+    # Buttons
+    btn_w, btn_h = 200, 60
+    btn_spacing = 20
+    total_w = btn_w * 2 + btn_spacing
+    start_x = (WIDTH - total_w) // 2
+    btn_y = HEIGHT - 100
+    
+    # Toggle mode button
+    toggle_text = "MULTIPLAYER" if mode == "single_player" else "SINGLE PLAYER"
+    toggle_hover = draw_button(win, (start_x, btn_y, btn_w, btn_h), toggle_text, TINY_FONT,
+                               (80, 80, 120), (120, 120, 160), (255, 255, 255))
+    
+    # Back button
+    back_hover = draw_button(win, (start_x + btn_w + btn_spacing, btn_y, btn_w, btn_h), "BACK", SMALL_FONT,
+                            (100, 50, 50), (150, 80, 80), (255, 255, 255))
+    
+    return toggle_hover, back_hover, difficulty_tabs
 
 def draw_modal(win, message, winner_time=None, loser_time=None, winner_name=None, loser_name=None):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -1718,6 +1872,11 @@ modal_result = None
 countdown_start = 0
 countdown_number = 0
 selected_difficulty = None
+player_name = ""
+player2_name = ""
+name_entry_stage = 1  # 1 for first player, 2 for second player
+leaderboard_mode = "single_player"
+leaderboard_difficulty = "easy"  # For single player difficulty filter
 update_window_title('menu')
 
 # Add help state to window title updater
@@ -1747,10 +1906,15 @@ while run:
                     is_multiplayer = True
                     state = 'map_select'
                     update_window_title('map_select')
-                elif hover_states[2]:  # Options
+                elif hover_states[2]:  # Leaderboard
+                    state = 'leaderboard'
+                    leaderboard_mode = 'single_player'
+                    leaderboard_difficulty = 'easy'
+                    pygame.display.set_caption("🏎️ Ultimate Racing Championship - Leaderboard")
+                elif hover_states[3]:  # Options
                     state = 'options'
                     update_window_title('options')
-                elif hover_states[3]:  # Quit
+                elif hover_states[4]:  # Quit
                     run = False
                     break
         
@@ -1874,6 +2038,114 @@ while run:
                             state = 'countdown'
                             update_window_title('countdown')
                             break
+        
+        pygame.display.update()
+        continue
+
+    # Leaderboard state
+    if state == 'leaderboard':
+        toggle_hover, back_hover, difficulty_tabs = draw_leaderboard(WIN, images, leaderboard_mode, leaderboard_difficulty)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if toggle_hover:
+                    leaderboard_mode = "multiplayer" if leaderboard_mode == "single_player" else "single_player"
+                elif back_hover:
+                    state = 'menu'
+                    update_window_title('menu')
+                else:
+                    # Check difficulty tab clicks
+                    for is_hover, diff in difficulty_tabs:
+                        if is_hover:
+                            leaderboard_difficulty = diff
+                            break
+        
+        pygame.display.update()
+        continue
+    
+    # Name entry state
+    if state == 'name_entry':
+        # Determine prompt based on stage and mode
+        if is_multiplayer:
+            if name_entry_stage == 1:
+                if modal_result == "p1_win":
+                    prompt = "PLAYER 1 (WINNER) - ENTER NAME"
+                else:
+                    prompt = "PLAYER 2 (WINNER) - ENTER NAME"
+                current_name = player_name
+            else:
+                if modal_result == "p1_win":
+                    prompt = "PLAYER 2 - ENTER NAME"
+                else:
+                    prompt = "PLAYER 1 - ENTER NAME"
+                current_name = player2_name
+        else:
+            prompt = "ENTER YOUR NAME"
+            current_name = player_name
+        
+        draw_name_entry(WIN, images, current_name, prompt)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                break
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    # Check if name is entered
+                    if is_multiplayer and name_entry_stage == 1:
+                        current_name_check = player_name
+                    elif is_multiplayer and name_entry_stage == 2:
+                        current_name_check = player2_name
+                    else:
+                        current_name_check = player_name
+                    
+                    if current_name_check:
+                        if is_multiplayer and name_entry_stage == 1:
+                            # Move to second player name entry
+                            name_entry_stage = 2
+                        else:
+                            # Save to leaderboard
+                            if modal_result in ("win", "p1_win"):
+                                winner_time = game_info.get_level_time()
+                                if is_multiplayer:
+                                    add_multiplayer_record(player_name, player2_name, winner_time, MAPS[current_map_key]["name"], game_settings.laps_to_win)
+                                else:
+                                    add_single_player_record(player_name, winner_time, MAPS[current_map_key]["name"], game_settings.ai_difficulty, game_settings.laps_to_win)
+                            elif modal_result == "p2_win":
+                                winner_time = game_info2.get_level_time()
+                                add_multiplayer_record(player2_name, player_name, winner_time, MAPS[current_map_key]["name"], game_settings.laps_to_win)
+                            
+                            player_name = ""
+                            player2_name = ""
+                            name_entry_stage = 1
+                            state = 'menu'
+                            update_window_title('menu')
+                elif event.key == pygame.K_BACKSPACE:
+                    if is_multiplayer and name_entry_stage == 1:
+                        player_name = player_name[:-1]
+                    elif is_multiplayer and name_entry_stage == 2:
+                        player2_name = player2_name[:-1]
+                    else:
+                        player_name = player_name[:-1]
+                elif event.key == pygame.K_ESCAPE:
+                    player_name = ""
+                    player2_name = ""
+                    name_entry_stage = 1
+                    state = 'menu'
+                    update_window_title('menu')
+                elif event.unicode.isalnum() or event.unicode == " ":
+                    if is_multiplayer and name_entry_stage == 1:
+                        if len(player_name) < 10:
+                            player_name += event.unicode.upper()
+                    elif is_multiplayer and name_entry_stage == 2:
+                        if len(player2_name) < 10:
+                            player2_name += event.unicode.upper()
+                    else:
+                        if len(player_name) < 10:
+                            player_name += event.unicode.upper()
         
         pygame.display.update()
         continue
@@ -2036,8 +2308,16 @@ while run:
                     state = 'countdown'
                     update_window_title('countdown')
                 elif quit_hover:
-                    state = 'menu'
-                    update_window_title('menu')
+                    # If player won, go to name entry for leaderboard
+                    if modal_result in ("win", "p1_win", "p2_win"):
+                        state = 'name_entry'
+                        player_name = ""
+                        player2_name = ""
+                        name_entry_stage = 1
+                        pygame.display.set_caption("🏎️ Ultimate Racing Championship - Enter Name")
+                    else:
+                        state = 'menu'
+                        update_window_title('menu')
 
         pygame.display.update()
         continue

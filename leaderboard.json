@@ -1,0 +1,30 @@
+{
+  "single_player": [
+    {
+      "name": "KHARL",
+      "time": 14.27,
+      "map": "City Circuit",
+      "difficulty": "medium",
+      "laps": 1,
+      "date": "2025-11-30 06:29"
+    },
+    {
+      "name": "KIER",
+      "time": 16.93,
+      "map": "City Circuit",
+      "difficulty": "hard",
+      "laps": 1,
+      "date": "2025-11-30 06:35"
+    }
+  ],
+  "multiplayer": [
+    {
+      "winner": "KHARL",
+      "loser": "Player 2",
+      "time": 13.89,
+      "map": "City Circuit",
+      "laps": 1,
+      "date": "2025-11-30 06:33"
+    }
+  ]
+}
