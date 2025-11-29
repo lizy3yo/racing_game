@@ -33,7 +33,7 @@ def add_single_player_record(player_name, time, map_name, difficulty, laps):
         "map": map_name,
         "difficulty": difficulty,
         "laps": laps,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+        "date": datetime.now().strftime("%m/%d/%Y | %I:%M %p").upper()
     }
     
     leaderboard["single_player"].append(record)
@@ -55,7 +55,7 @@ def add_multiplayer_record(winner_name, loser_name, time, map_name, laps):
         "time": round(time, 2),
         "map": map_name,
         "laps": laps,
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+        "date": datetime.now().strftime("%m/%d/%Y | %I:%M %p").upper()
     }
     
     leaderboard["multiplayer"].append(record)

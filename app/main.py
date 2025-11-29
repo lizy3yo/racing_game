@@ -1456,7 +1456,7 @@ def draw_leaderboard(win, images, mode="single_player", difficulty="easy"):
     
     # Display records
     start_y = 170 if mode == "single_player" else 150
-    line_height = 45
+    line_height = 55  # Increased from 45 to 55 for date line
     
     if not records:
         no_records = MAIN_FONT.render("No records yet!", True, (200, 200, 200))
@@ -1481,7 +1481,11 @@ def draw_leaderboard(win, images, mode="single_player", difficulty="easy"):
                 
                 # Map & Difficulty
                 info_txt = TINY_FONT.render(f"{record['map']} - {record['difficulty'].upper()}", True, (200, 200, 200))
-                win.blit(info_txt, (500, y + 5))
+                win.blit(info_txt, (500, y))
+                
+                # Date (brighter color for better visibility)
+                date_txt = TINY_FONT.render(record.get('date', 'N/A'), True, (220, 220, 220))
+                win.blit(date_txt, (180, y + 22))
             else:
                 # Winner name only
                 name_txt = SMALL_FONT.render(record['winner'], True, (255, 255, 255))
@@ -1493,7 +1497,11 @@ def draw_leaderboard(win, images, mode="single_player", difficulty="easy"):
                 
                 # Map
                 map_txt = TINY_FONT.render(record['map'], True, (200, 200, 200))
-                win.blit(map_txt, (550, y + 5))
+                win.blit(map_txt, (550, y))
+                
+                # Date (brighter color for better visibility)
+                date_txt = TINY_FONT.render(record.get('date', 'N/A'), True, (220, 220, 220))
+                win.blit(date_txt, (180, y + 22))
     
     # Buttons
     btn_w, btn_h = 200, 60
