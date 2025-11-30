@@ -1487,17 +1487,25 @@ def draw_leaderboard(win, images, mode="single_player", difficulty="easy"):
                 date_txt = TINY_FONT.render(record.get('date', 'N/A'), True, (220, 220, 220))
                 win.blit(date_txt, (180, y + 22))
             else:
-                # Winner name only
-                name_txt = SMALL_FONT.render(record['winner'], True, (255, 255, 255))
+                # Winner name with vs opponent
+                winner_name = record['winner']
+                opponent_name = record.get('loser', 'Unknown')
+                
+                name_txt = SMALL_FONT.render(winner_name, True, (255, 255, 255))
                 win.blit(name_txt, (180, y))
+                
+                # "vs opponent" in smaller text next to winner
+                vs_txt = TINY_FONT.render(f"vs {opponent_name}", True, (180, 180, 180))
+                vs_x = 180 + name_txt.get_width() + 10
+                win.blit(vs_txt, (vs_x, y + 5))
                 
                 # Time
                 time_txt = SMALL_FONT.render(f"{record['time']:.2f}s", True, (100, 255, 100))
-                win.blit(time_txt, (400, y))
+                win.blit(time_txt, (480, y))
                 
                 # Map
                 map_txt = TINY_FONT.render(record['map'], True, (200, 200, 200))
-                win.blit(map_txt, (550, y))
+                win.blit(map_txt, (630, y))
                 
                 # Date (brighter color for better visibility)
                 date_txt = TINY_FONT.render(record.get('date', 'N/A'), True, (220, 220, 220))
@@ -2295,15 +2303,17 @@ while run:
             if name_entry_stage == 1:
                 if modal_result == "p1_win":
                     prompt = "PLAYER 1 (WINNER) - ENTER NAME"
+                    current_name = player_name
                 else:
                     prompt = "PLAYER 2 (WINNER) - ENTER NAME"
-                current_name = player_name
+                    current_name = player2_name
             else:
                 if modal_result == "p1_win":
                     prompt = "PLAYER 2 - ENTER NAME"
+                    current_name = player2_name
                 else:
                     prompt = "PLAYER 1 - ENTER NAME"
-                current_name = player2_name
+                    current_name = player_name
         else:
             prompt = "ENTER YOUR NAME"
             current_name = player_name
@@ -2318,9 +2328,15 @@ while run:
                 if event.key == pygame.K_RETURN:
                     # Check if name is entered
                     if is_multiplayer and name_entry_stage == 1:
-                        current_name_check = player_name
+                        if modal_result == "p1_win":
+                            current_name_check = player_name
+                        else:
+                            current_name_check = player2_name
                     elif is_multiplayer and name_entry_stage == 2:
-                        current_name_check = player2_name
+                        if modal_result == "p1_win":
+                            current_name_check = player2_name
+                        else:
+                            current_name_check = player_name
                     else:
                         current_name_check = player_name
                     
@@ -2347,9 +2363,15 @@ while run:
                             update_window_title('menu')
                 elif event.key == pygame.K_BACKSPACE:
                     if is_multiplayer and name_entry_stage == 1:
-                        player_name = player_name[:-1]
+                        if modal_result == "p1_win":
+                            player_name = player_name[:-1]
+                        else:
+                            player2_name = player2_name[:-1]
                     elif is_multiplayer and name_entry_stage == 2:
-                        player2_name = player2_name[:-1]
+                        if modal_result == "p1_win":
+                            player2_name = player2_name[:-1]
+                        else:
+                            player_name = player_name[:-1]
                     else:
                         player_name = player_name[:-1]
                 elif event.key == pygame.K_ESCAPE:
@@ -2360,11 +2382,19 @@ while run:
                     update_window_title('menu')
                 elif event.unicode.isalnum() or event.unicode == " ":
                     if is_multiplayer and name_entry_stage == 1:
-                        if len(player_name) < 10:
-                            player_name += event.unicode.upper()
+                        if modal_result == "p1_win":
+                            if len(player_name) < 10:
+                                player_name += event.unicode.upper()
+                        else:
+                            if len(player2_name) < 10:
+                                player2_name += event.unicode.upper()
                     elif is_multiplayer and name_entry_stage == 2:
-                        if len(player2_name) < 10:
-                            player2_name += event.unicode.upper()
+                        if modal_result == "p1_win":
+                            if len(player2_name) < 10:
+                                player2_name += event.unicode.upper()
+                        else:
+                            if len(player_name) < 10:
+                                player_name += event.unicode.upper()
                     else:
                         if len(player_name) < 10:
                             player_name += event.unicode.upper()
