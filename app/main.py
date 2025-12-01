@@ -426,6 +426,9 @@ class ComputerCar(AbstractCar):
         dist = math.sqrt((self.x - target_x)**2 + (self.y - target_y)**2)
         if dist < 20:
             self.current_point += 1
+            # Immediately wrap around if we've reached the end
+            if self.current_point >= len(self.path):
+                self.current_point = 0
 
     def move(self):
         now = time.time()
@@ -436,8 +439,9 @@ class ComputerCar(AbstractCar):
                 self.stunned_until = 0
                 self.vel = self.max_vel
 
+        # Safety check: ensure current_point is valid
         if self.current_point >= len(self.path):
-            self.current_point = 0  # Loop back to start of path
+            self.current_point = 0
 
         self.calculate_angle()
         self.update_path_point()
@@ -1755,22 +1759,33 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                 # Reset checkpoint flag for next lap
                 ai_game_info.passed_halfway = False
                 
-                # Check if AI completed required laps
-                if ai_game_info.laps >= game_settings.laps_to_win:
+                # Debug: Print AI state when completing lap
+                print(f"AI completed lap {ai_game_info.laps}, current_point: {computer_car.current_point}, position: ({computer_car.x:.0f}, {computer_car.y:.0f})")
+                
+                # Sprint Mode: AI won this lap
+                if game_settings.race_mode == "sprint":
+                    if ai_game_info.laps >= game_settings.laps_to_win:
+                        return "lose"  # AI won enough laps
+                    else:
+                        return "ai_lap_win"  # AI won this lap, reset positions
+                
+                # Continuous Mode: Check if AI completed required laps
+                elif ai_game_info.laps >= game_settings.laps_to_win:
                     return "lose"  # AI finished all laps first
-                # Sprint mode: Check for map rotation per lap (only if not finished)
-                elif game_settings.race_mode == "sprint" and game_settings.map_rotation == "per_lap":
-                    return "change_map"
-                # Continuous mode: Check for map rotation per lap (only if not finished)
-                elif game_settings.race_mode == "continuous" and game_settings.map_rotation == "per_lap":
+                # Check for map rotation per lap (only if not finished)
+                elif game_settings.map_rotation == "per_lap":
                     return "change_map"
 
     player_finish_point_collide = player_car.collide(finish_mask, *finish_pos)
     if player_finish_point_collide != None:
-        if not game_info.passed_halfway:
-            # Show wrong way warning
+        # Check if we're in cooldown period (within 2 seconds of last lap)
+        current_time = time.time()
+        in_cooldown = (current_time - game_info.last_lap_time) < 2.0
+        
+        if not game_info.passed_halfway and not in_cooldown:
+            # Show wrong way warning (but not during cooldown)
             game_info.wrong_way_warning = time.time()
-        else:
+        elif game_info.passed_halfway:
             lap_time = game_info.complete_lap()
             if lap_time == 0:  # Cooldown active, don't process
                 pass
@@ -1798,12 +1813,11 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
                         else:
                             return "p1_lap_win"  # Player 1 won this lap, reset positions
                     else:
-                        # Single-player sprint: Check who won this lap
+                        # Single-player sprint: Player won this lap
                         if game_info.laps >= game_settings.laps_to_win:
-                            return "win"  # Player won all laps
-                        # Check for map rotation per lap (only if not finished)
-                        elif game_settings.map_rotation == "per_lap":
-                            return "change_map"
+                            return "win"  # Player won enough laps
+                        else:
+                            return "player_lap_win"  # Player won this lap, reset positions
                 
                 # Continuous Mode: Check if all laps completed
                 elif game_info.laps >= game_settings.laps_to_win:
@@ -1819,10 +1833,14 @@ def handle_collision(player_car, computer_car, powerups, projectiles, particles,
     if player_car2:
         player2_finish_point_collide = player_car2.collide(finish_mask, *finish_pos)
         if player2_finish_point_collide != None:
-            if not game_info2.passed_halfway:
-                # Show wrong way warning
+            # Check if we're in cooldown period (within 2 seconds of last lap)
+            current_time = time.time()
+            in_cooldown = (current_time - game_info2.last_lap_time) < 2.0
+            
+            if not game_info2.passed_halfway and not in_cooldown:
+                # Show wrong way warning (but not during cooldown)
                 game_info2.wrong_way_warning = time.time()
-            else:
+            elif game_info2.passed_halfway:
                 lap_time = game_info2.complete_lap()
                 if lap_time == 0:  # Cooldown active, don't process
                     pass
@@ -2478,8 +2496,8 @@ while run:
         result = handle_collision(player_car, computer_car, powerups, projectiles, particles, 
                                  MAPS[current_map_key], game_info, player_car2, game_info2)
         
-        if result in ("p1_lap_win", "p2_lap_win"):
-            # Sprint Mode: Player won this lap, reset positions
+        if result in ("p1_lap_win", "p2_lap_win", "player_lap_win", "ai_lap_win"):
+            # Sprint Mode: Someone won this lap, reset positions
             player_car.x, player_car.y = MAPS[current_map_key]["player_start"]
             player_car.angle = MAPS[current_map_key].get("start_angle", 0)
             player_car.vel = 0
@@ -2488,6 +2506,12 @@ while run:
                 player_car2.x, player_car2.y = MAPS[current_map_key]["ai_start"]
                 player_car2.angle = MAPS[current_map_key].get("start_angle", 0)
                 player_car2.vel = 0
+            elif computer_car:
+                # Reset AI car in single-player
+                computer_car.x, computer_car.y = MAPS[current_map_key]["ai_start"]
+                computer_car.angle = MAPS[current_map_key].get("start_angle", 0)
+                computer_car.vel = computer_car.max_vel
+                computer_car.current_point = 0  # Reset pathfinding to start
             
             # Brief countdown before next lap
             countdown_start = time.time()
