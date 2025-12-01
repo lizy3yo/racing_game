@@ -1533,12 +1533,14 @@ def draw_leaderboard(win, images, mode="single_player", difficulty="easy"):
     
     return toggle_hover, back_hover, difficulty_tabs
 
-def draw_modal(win, message, winner_time=None, loser_time=None, winner_name=None, loser_name=None):
+def draw_modal(win, message, winner_time=None, loser_time=None, winner_name=None, loser_name=None, best_lap=None, laps_completed=None):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     win.blit(overlay, (0, 0))
 
-    box_w, box_h = 600, 300
+    # Adjust box height if showing lap times
+    box_h = 350 if (best_lap is not None and laps_completed and laps_completed > 1) else 300
+    box_w = 600
     box_x = (WIDTH - box_w) // 2
     box_y = (HEIGHT - box_h) // 2
     
@@ -1548,15 +1550,29 @@ def draw_modal(win, message, winner_time=None, loser_time=None, winner_name=None
     msg = MAIN_FONT.render(message, True, (255, 255, 255))
     win.blit(msg, (box_x + (box_w - msg.get_width()) // 2, box_y + 40))
 
-    # Display winner time only
+    # Display times
     if winner_time is not None:
-        time_y = box_y + 120
+        time_y = box_y + 110
         
-        # Winner time (centered)
-        winner_label = winner_name if winner_name else "Winner"
-        time_text = f"{winner_label} Time: {winner_time:.2f}s"
-        time_txt = SMALL_FONT.render(time_text, True, (100, 255, 100))
-        win.blit(time_txt, (box_x + (box_w - time_txt.get_width()) // 2, time_y))
+        # If multiple laps, show both best lap and total time
+        if best_lap is not None and laps_completed and laps_completed > 1:
+            # Best Lap Time
+            winner_label = winner_name if winner_name else "Winner"
+            best_lap_text = f"{winner_label} Best Lap: {best_lap:.2f}s"
+            best_lap_txt = SMALL_FONT.render(best_lap_text, True, (255, 215, 0))
+            win.blit(best_lap_txt, (box_x + (box_w - best_lap_txt.get_width()) // 2, time_y))
+            
+            # Total Time
+            time_y += 40
+            total_time_text = f"Total Time: {winner_time:.2f}s"
+            total_time_txt = SMALL_FONT.render(total_time_text, True, (100, 255, 100))
+            win.blit(total_time_txt, (box_x + (box_w - total_time_txt.get_width()) // 2, time_y))
+        else:
+            # Single lap - just show time
+            winner_label = winner_name if winner_name else "Winner"
+            time_text = f"{winner_label} Time: {winner_time:.2f}s"
+            time_txt = SMALL_FONT.render(time_text, True, (100, 255, 100))
+            win.blit(time_txt, (box_x + (box_w - time_txt.get_width()) // 2, time_y))
 
     # Buttons - only RESTART and MENU
     btn_w, btn_h = 160, 60
@@ -2549,27 +2565,37 @@ while run:
     if state == 'modal':
         winner_time = None
         winner_name = None
+        best_lap = None
+        laps_completed = None
         
         if modal_result == 'p1_win':
             msg = "🏆 PLAYER 1 WINS! 🏆"
             winner_time = game_info.get_level_time()
             winner_name = "Player 1"
+            best_lap = game_info.best_time
+            laps_completed = game_info.laps
         elif modal_result == 'p2_win':
             msg = "🏆 PLAYER 2 WINS! 🏆"
             winner_time = game_info2.get_level_time()
             winner_name = "Player 2"
+            best_lap = game_info2.best_time
+            laps_completed = game_info2.laps
         elif modal_result == 'win':
             msg = "🏆 YOU WIN! 🏆"
             winner_time = game_info.get_level_time()
             winner_name = "Your"
+            best_lap = game_info.best_time
+            laps_completed = game_info.laps
         else:
             msg = "💥 YOU LOSE! 💥"
             winner_time = ai_game_info.get_level_time() if ai_game_info else None
             winner_name = "AI"
+            best_lap = ai_game_info.best_time if ai_game_info else None
+            laps_completed = ai_game_info.laps if ai_game_info else None
         
         draw(WIN, images, player_car, computer_car, game_info, powerups, projectiles, particles, MAPS[current_map_key], player_car2, game_info2, ai_game_info)
         
-        restart_hover, quit_hover = draw_modal(WIN, msg, winner_time, None, winner_name, None)
+        restart_hover, quit_hover = draw_modal(WIN, msg, winner_time, None, winner_name, None, best_lap, laps_completed)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

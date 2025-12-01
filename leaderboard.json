@@ -49,6 +49,14 @@
       "map": "City Circuit",
       "laps": 1,
       "date": "12/01/2025 | 07:16 AM"
+    },
+    {
+      "winner": "KHARL",
+      "loser": "JONAS",
+      "time": 34.94,
+      "map": "City Circuit",
+      "laps": 2,
+      "date": "12/02/2025 | 01:58 AM"
     }
   ]
 }
