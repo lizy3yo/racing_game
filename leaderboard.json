@@ -9,15 +9,39 @@
       "date": "12/01/2025 | 07:21 AM"
     },
     {
+      "name": "KIER",
+      "time": 14.82,
+      "map": "City Circuit",
+      "difficulty": "hard",
+      "laps": 2,
+      "date": "12/09/2025 | 05:57 PM"
+    },
+    {
       "name": "KHARL",
       "time": 15.0,
       "map": "City Circuit",
       "difficulty": "hard",
       "laps": 1,
       "date": "11/30/2025 | 07:17 AM"
+    },
+    {
+      "name": "KHARL",
+      "time": 26.59,
+      "map": "Classic Circuit",
+      "difficulty": "hard",
+      "laps": 2,
+      "date": "12/09/2025 | 05:48 PM"
     }
   ],
   "multiplayer": [
+    {
+      "winner": "KHARL 0912",
+      "loser": "LOSER",
+      "time": 14.2,
+      "map": "City Circuit",
+      "laps": 2,
+      "date": "12/09/2025 | 05:41 PM"
+    },
     {
       "winner": "MAE",
       "loser": "APRIL",
@@ -43,6 +67,14 @@
       "date": "12/01/2025 | 07:17 AM"
     },
     {
+      "winner": "KIER",
+      "loser": "SEANN",
+      "time": 29.06,
+      "map": "Classic Circuit",
+      "laps": 2,
+      "date": "12/09/2025 | 05:46 PM"
+    },
+    {
       "winner": "RYAN",
       "loser": "KHARL",
       "time": 30.85,
@@ -57,6 +89,14 @@
       "map": "City Circuit",
       "laps": 2,
       "date": "12/02/2025 | 01:58 AM"
+    },
+    {
+      "winner": "KHARL",
+      "loser": "KIER",
+      "time": 38.47,
+      "map": "Classic Circuit",
+      "laps": 2,
+      "date": "12/09/2025 | 05:59 PM"
     }
   ]
 }

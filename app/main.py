@@ -2513,27 +2513,53 @@ while run:
                                  MAPS[current_map_key], game_info, player_car2, game_info2)
         
         if result in ("p1_lap_win", "p2_lap_win", "player_lap_win", "ai_lap_win"):
-            # Sprint Mode: Someone won this lap, reset positions
-            player_car.x, player_car.y = MAPS[current_map_key]["player_start"]
-            player_car.angle = MAPS[current_map_key].get("start_angle", 0)
-            player_car.vel = 0
-            
-            if player_car2:
-                player_car2.x, player_car2.y = MAPS[current_map_key]["ai_start"]
-                player_car2.angle = MAPS[current_map_key].get("start_angle", 0)
-                player_car2.vel = 0
-            elif computer_car:
-                # Reset AI car in single-player
-                computer_car.x, computer_car.y = MAPS[current_map_key]["ai_start"]
-                computer_car.angle = MAPS[current_map_key].get("start_angle", 0)
-                computer_car.vel = computer_car.max_vel
-                computer_car.current_point = 0  # Reset pathfinding to start
-            
-            # Brief countdown before next lap
-            countdown_start = time.time()
-            countdown_number = 2  # 2 second countdown
-            state = 'countdown'
-            update_window_title('countdown')
+            # Sprint Mode: Someone won this lap
+            # Check if map rotation is enabled
+            if game_settings.map_rotation == "per_lap":
+                # Change to a random map
+                # Preserve lap counts before resetting
+                p1_laps = game_info.laps
+                p2_laps = game_info2.laps if game_info2 else 0
+                ai_laps = ai_game_info.laps if ai_game_info else 0
+                
+                available_maps = list(MAPS.keys())
+                current_map_key = random.choice(available_maps)
+                reset_game_state(current_map_key, is_multiplayer)
+                images = get_map_images(current_map_key)
+                
+                # Restore lap counts after reset
+                game_info.laps = p1_laps
+                if game_info2:
+                    game_info2.laps = p2_laps
+                if ai_game_info:
+                    ai_game_info.laps = ai_laps
+                
+                countdown_start = time.time()
+                countdown_number = COUNTDOWN_SECONDS
+                state = 'countdown'
+                update_window_title('countdown')
+            else:
+                # Just reset positions on the same map
+                player_car.x, player_car.y = MAPS[current_map_key]["player_start"]
+                player_car.angle = MAPS[current_map_key].get("start_angle", 0)
+                player_car.vel = 0
+                
+                if player_car2:
+                    player_car2.x, player_car2.y = MAPS[current_map_key]["ai_start"]
+                    player_car2.angle = MAPS[current_map_key].get("start_angle", 0)
+                    player_car2.vel = 0
+                elif computer_car:
+                    # Reset AI car in single-player
+                    computer_car.x, computer_car.y = MAPS[current_map_key]["ai_start"]
+                    computer_car.angle = MAPS[current_map_key].get("start_angle", 0)
+                    computer_car.vel = computer_car.max_vel
+                    computer_car.current_point = 0  # Reset pathfinding to start
+                
+                # Brief countdown before next lap
+                countdown_start = time.time()
+                countdown_number = 2  # 2 second countdown
+                state = 'countdown'
+                update_window_title('countdown')
         
         elif result == "change_map":
             # Random map rotation per lap
